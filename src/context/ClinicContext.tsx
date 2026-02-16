@@ -5,6 +5,35 @@ import { invoices as initialInvoices } from '../data/invoices';
 import { products as initialProducts } from '../data/products';
 import { ClinicStateContext, type NewAppointmentInput } from './clinicState';
 
+const timeToMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const hasConflict = (
+  appointments: Appointment[],
+  candidate: { id?: string; date: string; time: string; duration: number; veterinarian: string }
+): boolean => {
+  const start = timeToMinutes(candidate.time);
+  const end = start + candidate.duration;
+
+  return appointments.some((appointment) => {
+    if (
+      appointment.id === candidate.id ||
+      appointment.status === 'cancelled' ||
+      appointment.date !== candidate.date ||
+      appointment.veterinarian !== candidate.veterinarian
+    ) {
+      return false;
+    }
+
+    const existingStart = timeToMinutes(appointment.time);
+    const existingEnd = existingStart + appointment.duration;
+
+    return start < existingEnd && end > existingStart;
+  });
+};
+
 export function ClinicProvider({ children }: { children: ReactNode }) {
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [invoices, setInvoices] = useState<Invoice[]>(initialInvoices);
@@ -19,13 +48,12 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addAppointment = useCallback((input: NewAppointmentInput) => {
-    const isConflict = appointments.some(
-      (appointment) =>
-        appointment.date === input.date &&
-        appointment.time === input.time &&
-        appointment.veterinarian === input.veterinarian &&
-        appointment.status !== 'cancelled'
-    );
+    const isConflict = hasConflict(appointments, {
+      date: input.date,
+      time: input.time,
+      duration: input.duration,
+      veterinarian: input.veterinarian,
+    });
 
     if (isConflict) {
       return { ok: false as const, message: 'Conflit de planning sur ce creneau.' };
@@ -49,6 +77,39 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     setAppointments((current) => [...current, createdAppointment]);
     return { ok: true as const };
   }, [appointments]);
+
+  const updateAppointmentSchedule = useCallback(
+    (appointmentId: string, patch: { date: string; time: string; duration?: number }) => {
+      const currentAppointment = appointments.find((appointment) => appointment.id === appointmentId);
+      if (!currentAppointment) {
+        return { ok: false as const, message: 'Rendez-vous introuvable.' };
+      }
+
+      const duration = patch.duration ?? currentAppointment.duration;
+      const isConflict = hasConflict(appointments, {
+        id: appointmentId,
+        date: patch.date,
+        time: patch.time,
+        duration,
+        veterinarian: currentAppointment.veterinarian,
+      });
+
+      if (isConflict) {
+        return { ok: false as const, message: 'Conflit detecte avec un autre rendez-vous.' };
+      }
+
+      setAppointments((current) =>
+        current.map((appointment) =>
+          appointment.id === appointmentId
+            ? { ...appointment, date: patch.date, time: patch.time, duration }
+            : appointment
+        )
+      );
+
+      return { ok: true as const };
+    },
+    [appointments]
+  );
 
   const recordInvoicePayment = useCallback((invoiceId: string) => {
     setInvoices((current) =>
@@ -95,6 +156,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       invoices,
       products,
       updateAppointmentStatus,
+      updateAppointmentSchedule,
       addAppointment,
       recordInvoicePayment,
       adjustProductStock,
@@ -104,6 +166,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
       invoices,
       products,
       updateAppointmentStatus,
+      updateAppointmentSchedule,
       addAppointment,
       recordInvoicePayment,
       adjustProductStock,

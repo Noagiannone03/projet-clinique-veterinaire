@@ -19,6 +19,10 @@ export interface ClinicContextValue {
   invoices: Invoice[];
   products: Product[];
   updateAppointmentStatus: (appointmentId: string, status: Appointment['status']) => void;
+  updateAppointmentSchedule: (
+    appointmentId: string,
+    patch: { date: string; time: string; duration?: number }
+  ) => { ok: true } | { ok: false; message: string };
   addAppointment: (input: NewAppointmentInput) => { ok: true } | { ok: false; message: string };
   recordInvoicePayment: (invoiceId: string) => void;
   adjustProductStock: (productId: string, delta: number) => void;
