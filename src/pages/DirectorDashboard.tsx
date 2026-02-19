@@ -95,8 +95,8 @@ export function DirectorDashboard() {
             change: encashmentRate >= 80 ? 5 : -3,
             changeType: (encashmentRate >= 80 ? 'increase' : 'decrease') as 'increase' | 'decrease',
             icon: Activity,
-            iconBg: 'bg-sky-100',
-            iconColor: 'text-sky-600',
+            iconBg: 'bg-primary-100',
+            iconColor: 'text-primary-600',
             link: undefined,
         },
         {
@@ -105,8 +105,8 @@ export function DirectorDashboard() {
             change: 8.2,
             changeType: 'increase' as const,
             icon: Users,
-            iconBg: 'bg-violet-100',
-            iconColor: 'text-violet-600',
+            iconBg: 'bg-secondary-100',
+            iconColor: 'text-secondary-600',
             link: '/patients',
         },
         {
@@ -230,8 +230,8 @@ export function DirectorDashboard() {
                             <AreaChart data={revenueData}>
                                 <defs>
                                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.2} />
-                                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
+                                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.22} />
+                                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -241,7 +241,7 @@ export function DirectorDashboard() {
                                     contentStyle={{ backgroundColor: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}
                                     formatter={(value) => [`${(value ?? 0).toLocaleString()} EUR`, '']}
                                 />
-                                <Area type="monotone" dataKey="revenue" stroke="#0d9488" strokeWidth={2.5} fill="url(#colorRevenue)" name="Realise" />
+                                <Area type="monotone" dataKey="revenue" stroke="#2563eb" strokeWidth={2.5} fill="url(#colorRevenue)" name="Realise" />
                                 <Area type="monotone" dataKey="target" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="6 4" fill="transparent" name="Objectif" />
                             </AreaChart>
                         </ResponsiveContainer>
@@ -265,7 +265,7 @@ export function DirectorDashboard() {
                                     {weeklyData.map((entry, index) => (
                                         <Cell
                                             key={index}
-                                            fill={entry.isToday ? '#0d9488' : '#99f6e4'}
+                                            fill={entry.isToday ? '#2563eb' : '#bfdbfe'}
                                         />
                                     ))}
                                 </Bar>
@@ -330,22 +330,22 @@ export function DirectorDashboard() {
                             </div>
 
                             {/* Encaissement */}
-                            <div className="p-4 rounded-xl bg-sky-50 border border-sky-100">
+                            <div className="p-4 rounded-xl bg-primary-50 border border-primary-100">
                                 <div className="flex items-center justify-between mb-2">
-                                    <p className="text-sm font-medium text-sky-700">Taux d'encaissement</p>
-                                    <p className="text-xl font-bold text-sky-800">{encashmentRate}%</p>
+                                    <p className="text-sm font-medium text-primary-700">Taux d'encaissement</p>
+                                    <p className="text-xl font-bold text-primary-800">{encashmentRate}%</p>
                                 </div>
-                                <div className="w-full bg-sky-200 rounded-full h-2">
-                                    <div className={`rounded-full h-2 transition-all ${encashmentRate >= 80 ? 'bg-sky-500' : 'bg-amber-500'}`} style={{ width: `${encashmentRate}%` }} />
+                                <div className="w-full bg-primary-200 rounded-full h-2">
+                                    <div className={`rounded-full h-2 transition-all ${encashmentRate >= 80 ? 'bg-primary-500' : 'bg-amber-500'}`} style={{ width: `${encashmentRate}%` }} />
                                 </div>
-                                <p className="text-xs text-sky-600 mt-1">{encashmentRate >= 80 ? 'Bon niveau' : 'A ameliorer'}</p>
+                                <p className="text-xs text-primary-600 mt-1">{encashmentRate >= 80 ? 'Bon niveau' : 'A ameliorer'}</p>
                             </div>
 
                             {/* RDV avg */}
-                            <div className="p-4 rounded-xl bg-violet-50 border border-violet-100">
+                            <div className="p-4 rounded-xl bg-secondary-50 border border-secondary-100">
                                 <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium text-violet-700">RDV / semaine (moy.)</p>
-                                    <p className="text-xl font-bold text-violet-800">{weeklyAvg}</p>
+                                    <p className="text-sm font-medium text-secondary-700">RDV / semaine (moy.)</p>
+                                    <p className="text-xl font-bold text-secondary-800">{weeklyAvg}</p>
                                 </div>
                             </div>
                         </div>

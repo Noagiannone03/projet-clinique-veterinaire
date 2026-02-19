@@ -171,7 +171,7 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                     </div>
                     {/* New / returning patient badge */}
                     {patient.medicalHistory.length === 0 ? (
-                        <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-700">
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-700">
                             Nouveau patient
                         </span>
                     ) : (

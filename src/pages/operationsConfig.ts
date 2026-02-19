@@ -9,9 +9,9 @@ export const appointmentTypeLabel: Record<Appointment['type'], string> = {
 };
 
 export const appointmentTypeAccent: Record<Appointment['type'], string> = {
-    consultation: 'bg-sky-100 text-sky-700',
+    consultation: 'bg-primary-100 text-primary-700',
     vaccination: 'bg-emerald-100 text-emerald-700',
-    surgery: 'bg-violet-100 text-violet-700',
+    surgery: 'bg-secondary-100 text-secondary-700',
     'follow-up': 'bg-amber-100 text-amber-700',
     emergency: 'bg-rose-100 text-rose-700',
 };

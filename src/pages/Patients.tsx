@@ -38,7 +38,7 @@ const speciesLabel: Record<string, string> = {
 const speciesColors: Record<string, { bg: string; text: string; ring: string }> = {
     dog: { bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200' },
     cat: { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', ring: 'ring-fuchsia-200' },
-    bird: { bg: 'bg-sky-50', text: 'text-sky-700', ring: 'ring-sky-200' },
+    bird: { bg: 'bg-primary-50', text: 'text-primary-700', ring: 'ring-primary-200' },
     rabbit: { bg: 'bg-pink-50', text: 'text-pink-700', ring: 'ring-pink-200' },
     other: { bg: 'bg-slate-50', text: 'text-slate-700', ring: 'ring-slate-200' },
 };
@@ -341,13 +341,13 @@ export function Patients() {
                                         }}
                                         className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                                             workflowFilter === item.key
-                                                ? 'border-teal-300 bg-teal-50 text-teal-700'
+                                                ? 'border-primary-300 bg-primary-50 text-primary-700'
                                                 : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                                         }`}
                                     >
                                         {item.label}
                                         <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                                            workflowFilter === item.key ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-500'
+                                            workflowFilter === item.key ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500'
                                         }`}>
                                             {item.count}
                                         </span>
@@ -403,7 +403,7 @@ export function Patients() {
                                                                 <Icon className={`h-5 w-5 ${colors.text}`} />
                                                             </div>
                                                             <div>
-                                                                <p className="font-bold text-slate-900 group-hover:text-teal-700 transition-colors">{patient.name}</p>
+                                                                <p className="font-bold text-slate-900 group-hover:text-primary-700 transition-colors">{patient.name}</p>
                                                                 <p className="text-xs text-slate-400">{patient.breed} · {speciesLabel[patient.species]}</p>
                                                             </div>
                                                         </Link>
@@ -497,7 +497,7 @@ export function Patients() {
                                                         {patient.owner.firstName} {patient.owner.lastName}
                                                     </p>
                                                     {next && (
-                                                        <p className="mt-1.5 text-xs font-semibold text-teal-700">
+                                                        <p className="mt-1.5 text-xs font-semibold text-primary-700">
                                                             Prochain : {format(toAppointmentDateTime(next), 'dd MMM', { locale: fr })} à {format(toAppointmentDateTime(next), 'HH:mm')}
                                                         </p>
                                                     )}
@@ -510,7 +510,7 @@ export function Patients() {
                                             <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-100">
                                                 <Link
                                                     to={`/patients/${patient.id}`}
-                                                    className="inline-flex items-center gap-1 text-xs font-bold text-teal-700"
+                                                    className="inline-flex items-center gap-1 text-xs font-bold text-primary-700"
                                                 >
                                                     Voir la fiche <ArrowRight className="h-3.5 w-3.5" />
                                                 </Link>

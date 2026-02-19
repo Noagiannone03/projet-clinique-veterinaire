@@ -36,8 +36,8 @@ interface AppointmentAction {
 const statusColors: Record<Appointment['status'], {
     bg: string; text: string; border: string; dot: string; ring: string; hex: string;
 }> = {
-    scheduled:    { bg: 'bg-sky-50',     text: 'text-sky-700',     border: 'border-l-sky-400',     dot: 'bg-sky-400',     ring: 'ring-sky-200',     hex: '#38BDF8' },
-    arrived:      { bg: 'bg-violet-50',  text: 'text-violet-700',  border: 'border-l-violet-400',  dot: 'bg-violet-500',  ring: 'ring-violet-200',  hex: '#7C3AED' },
+    scheduled:    { bg: 'bg-primary-50',     text: 'text-primary-700',     border: 'border-l-primary-400',     dot: 'bg-primary-400',     ring: 'ring-primary-200',     hex: '#3B82F6' },
+    arrived:      { bg: 'bg-secondary-50',  text: 'text-secondary-700',  border: 'border-l-secondary-400',  dot: 'bg-secondary-500',  ring: 'ring-secondary-200',  hex: '#06B6D4' },
     'in-progress':{ bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-l-amber-400',   dot: 'bg-amber-500',   ring: 'ring-amber-200',   hex: '#F59E0B' },
     completed:    { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-l-emerald-400', dot: 'bg-emerald-500', ring: 'ring-emerald-200', hex: '#10B981' },
     cancelled:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-l-rose-400',    dot: 'bg-rose-400',    ring: 'ring-rose-200',    hex: '#F43F5E' },
@@ -61,16 +61,16 @@ const speciesEmoji: Record<Appointment['species'], string> = {
 };
 
 const vetPalette = [
-    { bg: 'bg-teal-100', text: 'text-teal-800', active: 'bg-teal-600 text-white' },
-    { bg: 'bg-violet-100', text: 'text-violet-800', active: 'bg-violet-600 text-white' },
+    { bg: 'bg-primary-100', text: 'text-primary-800', active: 'bg-primary-600 text-white' },
+    { bg: 'bg-secondary-100', text: 'text-secondary-800', active: 'bg-secondary-600 text-white' },
     { bg: 'bg-amber-100', text: 'text-amber-800', active: 'bg-amber-500 text-white' },
     { bg: 'bg-rose-100', text: 'text-rose-800', active: 'bg-rose-600 text-white' },
-    { bg: 'bg-sky-100', text: 'text-sky-800', active: 'bg-sky-600 text-white' },
+    { bg: 'bg-primary-100', text: 'text-primary-800', active: 'bg-primary-600 text-white' },
 ];
 
 const pipelineSteps: Array<{ status: Appointment['status']; label: string; dot: string; ring: string; textColor: string }> = [
-    { status: 'scheduled',    label: 'Planifié', dot: 'bg-sky-500',     ring: 'ring-sky-200',     textColor: 'text-sky-600' },
-    { status: 'arrived',      label: 'Arrivé',   dot: 'bg-violet-500',  ring: 'ring-violet-200',  textColor: 'text-violet-600' },
+    { status: 'scheduled',    label: 'Planifié', dot: 'bg-primary-500',     ring: 'ring-primary-200',     textColor: 'text-primary-600' },
+    { status: 'arrived',      label: 'Arrivé',   dot: 'bg-secondary-500',  ring: 'ring-secondary-200',  textColor: 'text-secondary-600' },
     { status: 'in-progress',  label: 'En cours', dot: 'bg-amber-500',   ring: 'ring-amber-200',   textColor: 'text-amber-600' },
     { status: 'completed',    label: 'Terminé',  dot: 'bg-emerald-500', ring: 'ring-emerald-200', textColor: 'text-emerald-600' },
 ];
@@ -225,10 +225,10 @@ export function Appointments() {
     };
 
     const actionBtnClass = (apt: Appointment): string => {
-        if (apt.status === 'scheduled') return 'bg-violet-600 hover:bg-violet-700 text-white';
+        if (apt.status === 'scheduled') return 'bg-secondary-600 hover:bg-secondary-700 text-white';
         if (apt.status === 'arrived') return 'bg-amber-500 hover:bg-amber-600 text-white';
         if (apt.status === 'in-progress') return 'bg-emerald-600 hover:bg-emerald-700 text-white';
-        return 'bg-indigo-600 hover:bg-indigo-700 text-white';
+        return 'bg-secondary-600 hover:bg-secondary-700 text-white';
     };
 
     /* ── Calendar helpers ── */
@@ -279,8 +279,8 @@ export function Appointments() {
 
                 {/* Titre + date */}
                 <div className="flex items-center gap-2.5 flex-shrink-0">
-                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${role === 'veterinarian' ? 'bg-teal-50' : 'bg-indigo-50'}`}>
-                        <CalendarIcon className={`h-4 w-4 ${role === 'veterinarian' ? 'text-teal-600' : 'text-indigo-600'}`} />
+                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${role === 'veterinarian' ? 'bg-primary-50' : 'bg-secondary-50'}`}>
+                        <CalendarIcon className={`h-4 w-4 ${role === 'veterinarian' ? 'text-primary-600' : 'text-secondary-600'}`} />
                     </div>
                     <div className="leading-tight hidden sm:block">
                         <p className="text-sm font-bold text-slate-900">{role === 'veterinarian' ? 'Mon planning' : 'Agenda'}</p>
@@ -337,7 +337,7 @@ export function Appointments() {
                         {role === 'veterinarian' && (
                             <button type="button" title={focusMode ? 'Désactiver le focus' : 'Activer le focus'}
                                 onClick={() => setFocusMode((s) => !s)}
-                                className={`h-8 w-8 rounded-xl flex items-center justify-center transition ${focusMode ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
+                                className={`h-8 w-8 rounded-xl flex items-center justify-center transition ${focusMode ? 'bg-secondary-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
                                 {focusMode ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
                             </button>
                         )}
@@ -368,10 +368,10 @@ export function Appointments() {
                         <div className="flex-shrink-0 border-b border-slate-100">
                             <div className="flex items-center justify-between px-4 pt-3 pb-2">
                                 <div className="flex items-center gap-1.5">
-                                    <span className="h-2 w-2 rounded-full bg-violet-500 animate-pulse" />
-                                    <span className="text-xs font-bold text-violet-900">Salle d'attente</span>
+                                    <span className="h-2 w-2 rounded-full bg-secondary-500 animate-pulse" />
+                                    <span className="text-xs font-bold text-secondary-900">Salle d'attente</span>
                                 </div>
-                                <span className="text-[10px] font-bold bg-violet-100 text-violet-700 rounded-full px-2 py-0.5">
+                                <span className="text-[10px] font-bold bg-secondary-100 text-secondary-700 rounded-full px-2 py-0.5">
                                     {waitingRoom.length}
                                 </span>
                             </div>
@@ -380,13 +380,13 @@ export function Appointments() {
                                     <p className="text-xs text-slate-400 text-center py-2 italic">Aucun patient en attente</p>
                                 ) : waitingRoom.map((apt) => (
                                     <button key={apt.id} type="button" onClick={() => setSelectedId(apt.id)}
-                                        className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left transition ${selectedId === apt.id ? 'bg-violet-50 ring-1 ring-violet-300' : 'hover:bg-slate-50'}`}>
+                                        className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left transition ${selectedId === apt.id ? 'bg-secondary-50 ring-1 ring-secondary-300' : 'hover:bg-slate-50'}`}>
                                         <span className="text-base">{speciesEmoji[apt.species]}</span>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-slate-900 truncate">{apt.patientName}</p>
                                             <p className="text-[11px] text-slate-400">{apt.ownerName}</p>
                                         </div>
-                                        <span className="text-xs font-bold text-violet-700 flex-shrink-0">{apt.time}</span>
+                                        <span className="text-xs font-bold text-secondary-700 flex-shrink-0">{apt.time}</span>
                                     </button>
                                 ))}
                             </div>
@@ -395,15 +395,15 @@ export function Appointments() {
 
                     {role === 'veterinarian' && nextVetAppt && (
                         <div className="flex-shrink-0 border-b border-slate-100 px-3 pt-3 pb-3">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-teal-500 mb-2">Prochain patient</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-primary-500 mb-2">Prochain patient</p>
                             <button type="button" onClick={() => setSelectedId(nextVetAppt.id)}
-                                className="w-full flex items-center gap-3 rounded-xl bg-teal-50 border border-teal-200 px-3 py-2.5 text-left hover:bg-teal-100 transition">
+                                className="w-full flex items-center gap-3 rounded-xl bg-primary-50 border border-primary-200 px-3 py-2.5 text-left hover:bg-primary-100 transition">
                                 <span className="text-2xl">{speciesEmoji[nextVetAppt.species]}</span>
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-teal-900 text-sm">{nextVetAppt.patientName}</p>
-                                    <p className="text-[11px] text-teal-600">{format(toAppointmentDateTime(nextVetAppt), 'HH:mm')} · {typeInfo[nextVetAppt.type].label}</p>
+                                    <p className="font-bold text-primary-900 text-sm">{nextVetAppt.patientName}</p>
+                                    <p className="text-[11px] text-primary-600">{format(toAppointmentDateTime(nextVetAppt), 'HH:mm')} · {typeInfo[nextVetAppt.type].label}</p>
                                 </div>
-                                <ArrowRight className="h-4 w-4 text-teal-400 flex-shrink-0" />
+                                <ArrowRight className="h-4 w-4 text-primary-400 flex-shrink-0" />
                             </button>
                         </div>
                     )}
@@ -465,7 +465,7 @@ export function Appointments() {
                                         <p className="text-[11px] text-slate-500">{selectedAppt.ownerName}</p>
                                         {selectedPatient && (
                                             <Link to={`/patients/${selectedPatient.id}`}
-                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 hover:text-teal-800 mt-0.5">
+                                                className="inline-flex items-center gap-1 text-[10px] font-bold text-primary-700 hover:text-primary-800 mt-0.5">
                                                 Fiche <ArrowRight className="h-2.5 w-2.5" />
                                             </Link>
                                         )}
@@ -624,7 +624,7 @@ export function Appointments() {
                         </div>
                         <p className="mb-3 text-sm font-semibold text-slate-700">Motif d'annulation</p>
                         <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}
-                            className="mb-4 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-200"
+                            className="mb-4 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-200"
                             rows={3} placeholder="Entrez le motif…" />
                         <div className="flex justify-end gap-3">
                             <Button variant="outline" onClick={() => setShowCancelDialog(false)}>Retour</Button>

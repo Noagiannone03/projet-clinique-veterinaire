@@ -39,16 +39,16 @@ const typeLabel: Record<Appointment['type'], string> = {
     consultation: 'Consultation', vaccination: 'Vaccination', surgery: 'Chirurgie', 'follow-up': 'Suivi', emergency: 'Urgence',
 };
 const typeColor: Record<Appointment['type'], string> = {
-    consultation: 'bg-sky-100 text-sky-700',
-    vaccination: 'bg-indigo-100 text-indigo-700',
+    consultation: 'bg-primary-100 text-primary-700',
+    vaccination: 'bg-secondary-100 text-secondary-700',
     surgery: 'bg-rose-100 text-rose-700',
     'follow-up': 'bg-slate-100 text-slate-600',
     emergency: 'bg-red-100 text-red-700',
 };
 
 const stepConfig: { key: PipelineStatus; label: string; icon: typeof Clock; color: string; bg: string }[] = [
-    { key: 'scheduled', label: 'Planifie', icon: Clock, color: 'text-sky-600', bg: 'bg-sky-500' },
-    { key: 'arrived', label: 'Arrive', icon: UserCheck, color: 'text-violet-600', bg: 'bg-violet-500' },
+    { key: 'scheduled', label: 'Planifie', icon: Clock, color: 'text-primary-600', bg: 'bg-primary-500' },
+    { key: 'arrived', label: 'Arrive', icon: UserCheck, color: 'text-secondary-600', bg: 'bg-secondary-500' },
     { key: 'in-progress', label: 'En cours', icon: Stethoscope, color: 'text-amber-600', bg: 'bg-amber-500' },
     { key: 'completed', label: 'Termine', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-500' },
 ];
@@ -204,7 +204,7 @@ export function ClinicDashboard() {
         if (apt.status === 'scheduled') {
             actionLabel = 'Patient arrive';
             actionIcon = <UserCheck className="w-4 h-4" />;
-            actionColor = 'bg-violet-600 hover:bg-violet-700 text-white';
+            actionColor = 'bg-secondary-600 hover:bg-secondary-700 text-white';
             onAction = () => handleSimpleAdvance(apt);
         } else if (apt.status === 'arrived' && showVetActions) {
             actionLabel = 'Demarrer la consultation';
@@ -231,7 +231,7 @@ export function ClinicDashboard() {
         // Status dot color
         const dotColor = apt.status === 'completed' ? 'bg-emerald-400' :
             apt.status === 'in-progress' ? 'bg-amber-400 animate-pulse' :
-                apt.status === 'arrived' ? 'bg-violet-400' :
+                apt.status === 'arrived' ? 'bg-secondary-400' :
                     'bg-slate-300';
 
         return (

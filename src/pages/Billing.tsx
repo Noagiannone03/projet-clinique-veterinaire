@@ -55,10 +55,10 @@ const statusConfig: Record<Invoice['status'], {
     },
     partial: {
         label: 'Partielle',
-        bg: 'bg-sky-50',
-        text: 'text-sky-700',
-        ring: 'ring-sky-200',
-        dot: 'bg-sky-500',
+        bg: 'bg-primary-50',
+        text: 'text-primary-700',
+        ring: 'ring-primary-200',
+        dot: 'bg-primary-500',
     },
 };
 
@@ -143,7 +143,7 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
                     {invoice.status !== 'paid' && invoice.total > 0 && (
                         <div className="mt-1.5 h-1.5 w-24 rounded-full bg-slate-200 overflow-hidden">
                             <div
-                                className="h-full rounded-full bg-teal-500 transition-all"
+                                className="h-full rounded-full bg-primary-500 transition-all"
                                 style={{ width: `${progressPct}%` }}
                             />
                         </div>
@@ -177,7 +177,7 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
                                     e.stopPropagation();
                                     onRecordPayment(invoice);
                                 }}
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-teal-700"
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-primary-700"
                             >
                                 <CreditCard className="h-3.5 w-3.5" />
                                 Encaisser
@@ -276,31 +276,31 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
 
                             {/* Payment plan */}
                             {invoice.paymentPlan && (
-                                <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 mb-4">
-                                    <p className="text-sm font-bold text-sky-900 mb-3 flex items-center gap-2">
+                                <div className="rounded-xl border border-primary-200 bg-primary-50 p-4 mb-4">
+                                    <p className="text-sm font-bold text-primary-900 mb-3 flex items-center gap-2">
                                         <TrendingUp className="h-4 w-4" /> Plan de paiement
                                     </p>
                                     <div className="grid grid-cols-3 gap-4 text-sm">
                                         <div>
-                                            <p className="text-[11px] font-semibold text-sky-600 uppercase mb-1">Échéances</p>
-                                            <p className="font-bold text-sky-900">
+                                            <p className="text-[11px] font-semibold text-primary-600 uppercase mb-1">Échéances</p>
+                                            <p className="font-bold text-primary-900">
                                                 {invoice.paymentPlan.paidInstallments} / {invoice.paymentPlan.totalInstallments}
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-[11px] font-semibold text-sky-600 uppercase mb-1">Montant/éch.</p>
-                                            <p className="font-bold text-sky-900">{invoice.paymentPlan.installmentAmount.toFixed(2)} €</p>
+                                            <p className="text-[11px] font-semibold text-primary-600 uppercase mb-1">Montant/éch.</p>
+                                            <p className="font-bold text-primary-900">{invoice.paymentPlan.installmentAmount.toFixed(2)} €</p>
                                         </div>
                                         <div>
-                                            <p className="text-[11px] font-semibold text-sky-600 uppercase mb-1">Prochain</p>
-                                            <p className="font-bold text-sky-900">
+                                            <p className="text-[11px] font-semibold text-primary-600 uppercase mb-1">Prochain</p>
+                                            <p className="font-bold text-primary-900">
                                                 {format(new Date(invoice.paymentPlan.nextPaymentDate), 'dd MMM', { locale: fr })}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="mt-3 h-2 rounded-full bg-sky-200 overflow-hidden">
+                                    <div className="mt-3 h-2 rounded-full bg-primary-200 overflow-hidden">
                                         <div
-                                            className="h-full rounded-full bg-sky-500 transition-all"
+                                            className="h-full rounded-full bg-primary-500 transition-all"
                                             style={{
                                                 width: `${(invoice.paymentPlan.paidInstallments / invoice.paymentPlan.totalInstallments) * 100}%`,
                                             }}
@@ -435,7 +435,7 @@ export function Billing() {
                         <p className="text-2xl font-bold text-slate-900">{stats.total.toFixed(0)} €</p>
                         <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                             <div
-                                className="h-full rounded-full bg-teal-500"
+                                className="h-full rounded-full bg-primary-500"
                                 style={{ width: `${stats.encaissementRate}%` }}
                             />
                         </div>
@@ -543,14 +543,14 @@ export function Billing() {
                                                 isSelected
                                                     ? isRed
                                                         ? 'border-rose-300 bg-rose-50 text-rose-700'
-                                                        : 'border-teal-300 bg-teal-50 text-teal-700'
+                                                        : 'border-primary-300 bg-primary-50 text-primary-700'
                                                     : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                                             }`}
                                         >
                                             {label}
                                             <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
                                                 isSelected
-                                                    ? isRed ? 'bg-rose-100 text-rose-700' : 'bg-teal-100 text-teal-700'
+                                                    ? isRed ? 'bg-rose-100 text-rose-700' : 'bg-primary-100 text-primary-700'
                                                     : 'bg-slate-100 text-slate-500'
                                             }`}>
                                                 {count}

@@ -28,7 +28,7 @@ export function ConfirmDialog({
     const iconColors = {
         danger: 'text-rose-600 bg-rose-100',
         warning: 'text-amber-600 bg-amber-100',
-        info: 'text-sky-600 bg-sky-100',
+        info: 'text-primary-600 bg-primary-100',
     };
 
     return (

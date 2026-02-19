@@ -23,14 +23,14 @@ const icons: Record<ToastType, React.ReactNode> = {
     success: <CheckCircle className="w-5 h-5 text-emerald-500" />,
     error: <XCircle className="w-5 h-5 text-rose-500" />,
     warning: <AlertTriangle className="w-5 h-5 text-amber-500" />,
-    info: <Info className="w-5 h-5 text-sky-500" />,
+    info: <Info className="w-5 h-5 text-primary-500" />,
 };
 
 const bgClasses: Record<ToastType, string> = {
     success: 'border-emerald-200 bg-emerald-50',
     error: 'border-rose-200 bg-rose-50',
     warning: 'border-amber-200 bg-amber-50',
-    info: 'border-sky-200 bg-sky-50',
+    info: 'border-primary-200 bg-primary-50',
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {

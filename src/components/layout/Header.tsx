@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Menu, Search, LogOut, User, ChevronDown } from 'lucide-react';
+import { Bell, Menu, Search } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSidebar } from '../../context/SidebarContext';
 import { useClinicData } from '../../context/clinicState';
@@ -13,12 +13,10 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
-    const { user, role, logout } = useAuth();
+    const { user, role } = useAuth();
     const { openMobile } = useSidebar();
     const { patients, products, invoices, appointments } = useClinicData();
-    const [showUserMenu, setShowUserMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
-    const userMenuRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
 
     const vaccinationsDue = getVaccinationDueSoonCount(patients);
@@ -45,18 +43,18 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
 
     if (role === 'veterinarian') {
         if (vaccinationsDue > 0)
-            notifications.push({ title: `${vaccinationsDue} vaccination(s) a prevoir`, detail: 'Dans les 60 prochains jours', color: 'text-sky-700' });
+            notifications.push({ title: `${vaccinationsDue} vaccination(s) a prevoir`, detail: 'Dans les 60 prochains jours', color: 'text-primary-700' });
         const myAppointments = todayAppointments.filter((a) => a.veterinarian === user?.name);
         if (myAppointments.length > 0)
             notifications.push({ title: `${myAppointments.length} RDV aujourd'hui`, detail: `${myAppointments.filter((a) => a.status === 'completed').length} termines`, color: 'text-primary-700' });
-        const criticalPatients = patients.filter((p) => p.alerts.some((a) => a.severity === 'critical'));
+        const criticalPatients = patients.filter((p) => p.alerts.some((a) => a.severity === 'high'));
         if (criticalPatients.length > 0)
             notifications.push({ title: `${criticalPatients.length} alerte(s) patient critique`, detail: criticalPatients.map((p) => p.name).join(', '), color: 'text-rose-700' });
     }
 
     if (role === 'assistant') {
         if (upcomingCount > 0)
-            notifications.push({ title: `${upcomingCount} RDV a venir aujourd'hui`, detail: `${todayAppointments.length} au total`, color: 'text-sky-700' });
+            notifications.push({ title: `${upcomingCount} RDV a venir aujourd'hui`, detail: `${todayAppointments.length} au total`, color: 'text-primary-700' });
         if (lowStock.length > 0)
             notifications.push({ title: `${lowStock.length} produit(s) en stock bas`, detail: lowStock.map((p) => p.name).join(', '), color: 'text-amber-700' });
         if (pendingInvoices.length > 0)
@@ -69,7 +67,6 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
-            if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setShowUserMenu(false);
             if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifications(false);
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -79,13 +76,13 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
     const roleName = user?.role === 'director' ? 'Directeur' : user?.role === 'veterinarian' ? 'Veterinaire' : 'Assistante';
 
     return (
-        <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-4">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 px-4 py-4 backdrop-blur-xl sm:px-8">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     {/* Mobile hamburger */}
                     <button
                         onClick={openMobile}
-                        className="md:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600"
+                        className="text-slate-600 transition-colors hover:bg-primary-50 md:hidden p-2 rounded-lg"
                     >
                         <Menu className="w-5 h-5" />
                     </button>
@@ -97,7 +94,7 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
                             </div>
                         )}
                         <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{title}</h1>
-                        {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
+                        {subtitle && <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p>}
                     </div>
                 </div>
 
@@ -105,11 +102,14 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
                     {/* Cmd+K */}
                     <button
                         onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-                        className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-400 text-sm transition-colors"
+                        className="group hidden items-center gap-3 rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-50 via-white to-secondary-50 px-4 py-2.5 text-sm text-primary-700 shadow-md shadow-primary-100/70 ring-1 ring-white transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-lg hover:shadow-primary-200/70 sm:flex"
                     >
-                        <Search className="w-4 h-4" />
-                        <span className="hidden lg:inline">Rechercher...</span>
-                        <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-400 font-mono">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-primary-100 text-primary-700 transition-colors group-hover:bg-primary-200">
+                            <Search className="h-4 w-4" />
+                        </span>
+                        <span className="hidden text-sm font-semibold tracking-tight text-slate-700 lg:inline">Rechercher un patient, un RDV...</span>
+                        <span className="text-sm font-semibold tracking-tight text-slate-700 lg:hidden">Rechercher...</span>
+                        <kbd className="hidden items-center rounded-md border border-primary-200 bg-white px-1.5 py-0.5 font-mono text-xs text-primary-600 lg:inline-flex">
                             ⌘K
                         </kbd>
                     </button>
@@ -118,27 +118,27 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
                     <div className="relative" ref={notifRef}>
                         <button
                             onClick={() => setShowNotifications(!showNotifications)}
-                            className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                            className="relative rounded-xl border border-slate-200 bg-white p-2 transition-all hover:border-primary-200 hover:bg-primary-50"
                         >
                             <Bell className="w-5 h-5 text-slate-600" />
                             {totalAlerts > 0 && (
-                                <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                                <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
                                     {totalAlerts > 9 ? '9+' : totalAlerts}
                                 </span>
                             )}
                         </button>
 
                         {showNotifications && (
-                            <div className="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-50 animate-fade-in">
-                                <div className="p-4 border-b border-slate-100">
+                            <div className="animate-pulse-in absolute right-0 top-12 z-50 w-80 rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                                <div className="border-b border-slate-100 p-4">
                                     <h3 className="font-semibold text-slate-900">Notifications</h3>
-                                    <p className="text-xs text-slate-400 mt-0.5">{roleName}</p>
+                                    <p className="mt-0.5 text-xs text-slate-400">{roleName}</p>
                                 </div>
                                 <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
                                     {notifications.map((n, i) => (
-                                        <div key={i} className="p-4 hover:bg-slate-50">
+                                        <div key={i} className="p-4 transition-colors hover:bg-primary-50/45">
                                             <p className={`text-sm font-medium ${n.color}`}>{n.title}</p>
-                                            <p className="text-xs text-slate-500 mt-0.5">{n.detail}</p>
+                                            <p className="mt-0.5 text-xs text-slate-500">{n.detail}</p>
                                         </div>
                                     ))}
                                     {notifications.length === 0 && (
@@ -147,39 +147,6 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
                                         </div>
                                     )}
                                 </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* User menu */}
-                    <div className="relative" ref={userMenuRef}>
-                        <button
-                            onClick={() => setShowUserMenu(!showUserMenu)}
-                            className="flex items-center gap-2 pl-3 sm:pl-4 border-l border-slate-200 hover:bg-slate-50 rounded-r-lg py-1 pr-2 transition-colors"
-                        >
-                            <div className="text-right hidden sm:block">
-                                <p className="text-sm font-medium text-slate-900">{user?.name}</p>
-                                <p className="text-xs text-slate-500">{roleName}</p>
-                            </div>
-                            <div className="w-9 h-9 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center">
-                                <User className="w-4 h-4 text-white" />
-                            </div>
-                            <ChevronDown className="w-4 h-4 text-slate-400 hidden sm:block" />
-                        </button>
-
-                        {showUserMenu && (
-                            <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-xl border border-slate-200 z-50 animate-fade-in py-1">
-                                <div className="px-4 py-3 border-b border-slate-100 sm:hidden">
-                                    <p className="text-sm font-medium text-slate-900">{user?.name}</p>
-                                    <p className="text-xs text-slate-500">{roleName}</p>
-                                </div>
-                                <button
-                                    onClick={() => { setShowUserMenu(false); logout(); }}
-                                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
-                                >
-                                    <LogOut className="w-4 h-4" />
-                                    Deconnexion
-                                </button>
                             </div>
                         )}
                     </div>

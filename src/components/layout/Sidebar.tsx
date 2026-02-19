@@ -48,13 +48,13 @@ export function Sidebar() {
             {/* Desktop Sidebar */}
             {showDesktop && (
                 <aside
-                    className={`fixed left-0 top-0 h-screen bg-white border-r border-slate-200 flex-col z-40 transition-all duration-300 hidden md:flex ${isExpanded ? 'w-64' : 'w-[56px]'
+                    className={`fixed left-0 top-0 z-40 hidden h-screen flex-col border-r border-slate-200/80 bg-white/90 backdrop-blur-xl transition-all duration-300 md:flex ${isExpanded ? 'w-64' : 'w-[56px]'
                         }`}
                 >
                     {/* Logo */}
-                    <div className={`border-b border-slate-200 ${isExpanded ? 'p-4' : 'p-2'}`}>
+                    <div className={`border-b border-slate-200/70 ${isExpanded ? 'p-4' : 'p-2'}`}>
                         <div className="flex items-center gap-3">
-                            <div className={`${isExpanded ? 'h-16 w-44' : 'h-12 w-12 rounded-lg'} overflow-hidden flex-shrink-0`}>
+                            <div className={`${isExpanded ? 'h-16 w-44 rounded-xl border border-slate-200 bg-white p-1' : 'h-12 w-12 rounded-lg border border-slate-200 bg-white p-1'} overflow-hidden flex-shrink-0`}>
                                 <img
                                     src={clinicLogo}
                                     alt="Clinique des Etangs"
@@ -72,10 +72,10 @@ export function Sidebar() {
                                 to={item.to}
                                 end={item.to === '/' || item.to === '/clinic'}
                                 className={({ isActive }) =>
-                                    `flex items-center gap-3 rounded-lg transition-colors ${isExpanded ? 'px-3 py-2.5' : 'px-2 py-2.5 justify-center'
+                                    `flex items-center gap-3 rounded-xl transition-all ${isExpanded ? 'px-3 py-2.5' : 'justify-center px-2 py-2.5'
                                     } ${isActive
-                                        ? 'bg-primary-50 text-primary-700 font-medium'
-                                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                                        ? 'border border-primary-200 bg-gradient-to-r from-primary-50 to-secondary-50 text-primary-700 shadow-sm'
+                                        : 'border border-transparent text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900'
                                     }`
                                 }
                                 title={isCollapsed ? item.label : undefined}
@@ -87,16 +87,16 @@ export function Sidebar() {
                     </nav>
 
                     {/* Footer */}
-                    <div className={`border-t border-slate-200 space-y-1 ${isExpanded ? 'p-4' : 'p-2'}`}>
+                    <div className={`space-y-1 border-t border-slate-200/70 ${isExpanded ? 'p-4' : 'p-2'}`}>
                         {isExpanded && user && (
-                            <div className="px-3 py-2 mb-2">
+                            <div className="mb-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
                                 <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
                                 <p className="text-xs text-slate-500 capitalize">{user.role === 'director' ? 'Directeur' : user.role === 'veterinarian' ? 'Veterinaire' : 'Assistante'}</p>
                             </div>
                         )}
                         <NavLink
                             to="/settings"
-                            className={`flex items-center gap-3 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors ${isExpanded ? 'px-3 py-2.5' : 'px-2 py-2.5 justify-center'
+                            className={`flex items-center gap-3 rounded-xl border border-transparent text-slate-600 transition-all hover:border-slate-200 hover:bg-white hover:text-slate-900 ${isExpanded ? 'px-3 py-2.5' : 'justify-center px-2 py-2.5'
                                 }`}
                             title={isCollapsed ? 'Parametres' : undefined}
                         >
@@ -105,7 +105,7 @@ export function Sidebar() {
                         </NavLink>
                         <button
                             onClick={() => setShowLogoutConfirm(true)}
-                            className={`w-full flex items-center gap-3 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors ${isExpanded ? 'px-3 py-2.5' : 'px-2 py-2.5 justify-center'
+                            className={`flex w-full items-center gap-3 rounded-xl border border-transparent text-rose-600 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 ${isExpanded ? 'px-3 py-2.5' : 'justify-center px-2 py-2.5'
                                 }`}
                             title={isCollapsed ? 'Deconnexion' : undefined}
                         >
@@ -116,7 +116,7 @@ export function Sidebar() {
                         {/* Collapse toggle */}
                         <button
                             onClick={toggle}
-                            className={`w-full flex items-center gap-3 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors mt-2 ${isExpanded ? 'px-3 py-2' : 'px-2 py-2 justify-center'
+                            className={`mt-2 flex w-full items-center gap-3 rounded-xl border border-transparent text-slate-400 transition-all hover:border-slate-200 hover:bg-white hover:text-slate-600 ${isExpanded ? 'px-3 py-2' : 'justify-center px-2 py-2'
                                 }`}
                         >
                             {isExpanded ? (
@@ -136,10 +136,10 @@ export function Sidebar() {
             {isMobileOpen && (
                 <div className="fixed inset-0 z-50 md:hidden">
                     <div className="fixed inset-0 bg-black/50" onClick={closeMobile} />
-                    <aside className="fixed left-0 top-0 h-screen w-72 bg-white shadow-xl z-10 animate-fade-in flex flex-col">
-                        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                    <aside className="animate-pulse-in fixed left-0 top-0 z-10 flex h-screen w-72 flex-col border-r border-slate-200 bg-white shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-slate-200 p-4">
                             <div className="flex items-center gap-3">
-                                <div className="h-14 w-40 overflow-hidden flex-shrink-0">
+                                <div className="h-14 w-40 flex-shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-1">
                                     <img
                                         src={clinicLogo}
                                         alt="Clinique des Etangs"
@@ -147,7 +147,7 @@ export function Sidebar() {
                                     />
                                 </div>
                             </div>
-                            <button onClick={closeMobile} className="p-2 rounded-lg hover:bg-slate-100">
+                            <button onClick={closeMobile} className="rounded-lg p-2 hover:bg-primary-50">
                                 <X className="w-5 h-5 text-slate-500" />
                             </button>
                         </div>
@@ -160,9 +160,9 @@ export function Sidebar() {
                                     end={item.to === '/' || item.to === '/clinic'}
                                     onClick={closeMobile}
                                     className={({ isActive }) =>
-                                        `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive
-                                            ? 'bg-primary-50 text-primary-700 font-medium'
-                                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                                        `flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all ${isActive
+                                            ? 'border-primary-200 bg-gradient-to-r from-primary-50 to-secondary-50 text-primary-700'
+                                            : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900'
                                         }`
                                     }
                                 >
@@ -172,16 +172,16 @@ export function Sidebar() {
                             ))}
                         </nav>
 
-                        <div className="p-4 border-t border-slate-200 space-y-1">
+                        <div className="space-y-1 border-t border-slate-200 p-4">
                             {user && (
-                                <div className="px-3 py-2 mb-2">
+                                <div className="mb-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                                     <p className="text-sm font-medium text-slate-900">{user.name}</p>
                                     <p className="text-xs text-slate-500 capitalize">{user.role === 'director' ? 'Directeur' : user.role === 'veterinarian' ? 'Veterinaire' : 'Assistante'}</p>
                                 </div>
                             )}
                             <button
                                 onClick={() => { closeMobile(); setShowLogoutConfirm(true); }}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-rose-600 hover:bg-rose-50"
+                                className="flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-rose-600 transition-all hover:border-rose-200 hover:bg-rose-50"
                             >
                                 <LogOut className="w-5 h-5" />
                                 <span className="text-sm">Deconnexion</span>
