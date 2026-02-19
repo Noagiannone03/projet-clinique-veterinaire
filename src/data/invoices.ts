@@ -17,6 +17,7 @@ export const invoices: Invoice[] = [
         tax: 14.70,
         total: 88.20,
         status: 'paid',
+        payments: [],
     },
     {
         id: 'inv-2',
@@ -41,6 +42,7 @@ export const invoices: Invoice[] = [
             installmentAmount: 116.00,
             nextPaymentDate: '2026-02-10',
         },
+        payments: [],
     },
     {
         id: 'inv-3',
@@ -59,6 +61,7 @@ export const invoices: Invoice[] = [
         tax: 52.00,
         total: 312.00,
         status: 'overdue',
+        payments: [],
     },
     {
         id: 'inv-4',
@@ -75,6 +78,7 @@ export const invoices: Invoice[] = [
         tax: 15.00,
         total: 90.00,
         status: 'pending',
+        payments: [],
     },
 ];
 

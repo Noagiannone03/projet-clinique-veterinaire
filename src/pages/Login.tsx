@@ -9,7 +9,6 @@ import {
     Lock,
     Eye,
     EyeOff,
-    CheckCircle2,
     ShieldCheck,
 } from 'lucide-react';
 import type { Role } from '../types';
@@ -19,24 +18,6 @@ const roleIcons: Record<Role, React.ReactNode> = {
     director: <Briefcase className="h-5 w-5" />,
     veterinarian: <Stethoscope className="h-5 w-5" />,
     assistant: <Headset className="h-5 w-5" />,
-};
-
-const roleColors: Record<Role, { icon: string; ring: string; chip: string }> = {
-    director: {
-        icon: 'bg-primary-100 text-primary-700',
-        ring: 'ring-primary-200',
-        chip: 'bg-primary-600 text-white',
-    },
-    veterinarian: {
-        icon: 'bg-secondary-100 text-secondary-700',
-        ring: 'ring-secondary-200',
-        chip: 'bg-secondary-600 text-white',
-    },
-    assistant: {
-        icon: 'bg-primary-100 text-primary-700',
-        ring: 'ring-primary-200',
-        chip: 'bg-primary-600 text-white',
-    },
 };
 
 const roleTitles: Record<Role, string> = {
@@ -76,65 +57,39 @@ export function Login() {
     };
 
     return (
-        <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-primary-100 via-white to-secondary-100 p-4 sm:p-8">
-            <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -left-24 top-16 h-72 w-72 rounded-full bg-primary-300/35 blur-3xl" />
-                <div className="absolute -right-32 top-20 h-80 w-80 rounded-full bg-secondary-300/40 blur-3xl" />
-                <div className="absolute bottom-0 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary-200/35 blur-3xl" />
-            </div>
-
-            <div className="relative mx-auto flex w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-2xl shadow-primary-900/10 backdrop-blur-xl lg:grid lg:grid-cols-2">
-                <section className="relative overflow-hidden bg-gradient-to-br from-primary-700 via-primary-600 to-secondary-600 px-6 py-10 text-white sm:px-10 lg:p-12">
-                    <div className="absolute right-0 top-0 h-44 w-44 translate-x-10 -translate-y-10 rounded-full bg-white/10 blur-2xl" />
-                    <div className="absolute bottom-0 left-0 h-52 w-52 -translate-x-10 translate-y-12 rounded-full bg-white/10 blur-2xl" />
-
-                    <div className="relative z-10">
-                        <div className="mb-6 inline-flex rounded-2xl border border-white/20 bg-white/10 p-2">
-                            <div className="h-16 w-44 overflow-hidden rounded-xl bg-white p-1">
-                                <img
-                                    src={clinicLogo}
-                                    alt="Clinique des Etangs"
-                                    className="h-full w-full object-cover object-center scale-125"
-                                />
-                            </div>
-                        </div>
-
-                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/80">Espace clinique</p>
-                        <h1 className="mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">
-                            Gestion veterinaire
-                            <br />
-                            simple et fiable
-                        </h1>
-                        <p className="mt-4 max-w-md text-sm text-primary-100 sm:text-base">
-                            Interface de demonstration MVP inspiree des codes Doctolib: propre, lisible, et orientee operationnel.
-                        </p>
-
-                        <div className="mt-8 space-y-3">
-                            <div className="flex items-start gap-3 rounded-xl border border-white/20 bg-white/10 p-3">
-                                <CheckCircle2 className="mt-0.5 h-4 w-4 text-white" />
-                                <p className="text-sm text-white/90">Flux clair: accueil, consultation, inventaire, facturation.</p>
-                            </div>
-                            <div className="flex items-start gap-3 rounded-xl border border-white/20 bg-white/10 p-3">
-                                <CheckCircle2 className="mt-0.5 h-4 w-4 text-white" />
-                                <p className="text-sm text-white/90">Acces role-based: direction, veto, assistante.</p>
-                            </div>
-                            <div className="flex items-start gap-3 rounded-xl border border-white/20 bg-white/10 p-3">
-                                <CheckCircle2 className="mt-0.5 h-4 w-4 text-white" />
-                                <p className="text-sm text-white/90">Connexion demo instantanee, sans backend.</p>
-                            </div>
+        <div className="min-h-screen bg-[#f4f7fb] p-4 sm:p-8">
+            <div className="mx-auto grid w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)] lg:grid-cols-[1.05fr_1fr]">
+                <section className="border-b border-slate-200 bg-[linear-gradient(180deg,#f9fcff_0%,#edf6ff_100%)] p-6 sm:p-10 lg:border-b-0 lg:border-r">
+                    <div className="mb-6 inline-flex rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                        <div className="h-16 w-44 overflow-hidden rounded-xl bg-white p-1">
+                            <img
+                                src={clinicLogo}
+                                alt="Clinique des Etangs"
+                                className="h-full w-full object-cover object-center scale-125"
+                            />
                         </div>
                     </div>
+
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary-600">Clinique des Etangs</p>
+                    <h1 className="mt-3 text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl">
+                        Gestion clinique
+                        <br />
+                        plus fluide au quotidien
+                    </h1>
+                    <p className="mt-3 max-w-lg text-sm text-slate-600 sm:text-base">
+                        Prototype MVP de test inspire des interfaces de sante: priorite a la lisibilite, a la vitesse et aux actions metier.
+                    </p>
                 </section>
 
                 <section className="bg-white p-6 sm:p-10">
                     <div className="mx-auto w-full max-w-md">
                         <div className="mb-6">
-                            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary-600">Connexion</p>
-                            <h2 className="mt-2 text-2xl font-extrabold text-slate-900">Bienvenue</h2>
-                            <p className="mt-1 text-sm text-slate-500">Saisissez vos identifiants demo pour acceder a la plateforme.</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Connexion</p>
+                            <h2 className="mt-2 text-2xl font-bold text-slate-900">Bienvenue</h2>
+                            <p className="mt-1 text-sm text-slate-500">Utilisez un compte demo pour entrer dans la plateforme.</p>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 shadow-sm sm:p-6">
+                        <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
                             <div className="space-y-4">
                                 <div>
                                     <label htmlFor="email" className="mb-1.5 block text-sm font-semibold text-slate-700">
@@ -148,7 +103,7 @@ export function Login() {
                                             value={email}
                                             onChange={(event) => setEmail(event.target.value)}
                                             placeholder="prenom.nom@cliniquedesetangs.fr"
-                                            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:outline-none focus:ring-4 focus:ring-primary-100"
+                                            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-100"
                                         />
                                     </div>
                                 </div>
@@ -165,7 +120,7 @@ export function Login() {
                                             value={password}
                                             onChange={(event) => setPassword(event.target.value)}
                                             placeholder="Entrez votre mot de passe"
-                                            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:outline-none focus:ring-4 focus:ring-primary-100"
+                                            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-100"
                                         />
                                         <button
                                             type="button"
@@ -189,8 +144,8 @@ export function Login() {
                                                 type="button"
                                                 onClick={() => selectDemoRole(user.role)}
                                                 className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${active
-                                                    ? 'border-primary-300 bg-primary-50 text-primary-700 shadow-sm'
-                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:text-primary-700'
+                                                    ? 'border-primary-300 bg-primary-50 text-primary-700'
+                                                    : 'border-slate-300 bg-white text-slate-600 hover:border-primary-200 hover:text-primary-700'
                                                     }`}
                                             >
                                                 {roleIcons[user.role]}
@@ -211,49 +166,17 @@ export function Login() {
 
                             <button
                                 type="submit"
-                                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-secondary-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-primary-500/25 transition hover:from-primary-700 hover:to-secondary-700"
+                                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-primary-600/25 transition hover:bg-primary-700"
                             >
                                 <ShieldCheck className="h-4 w-4" />
                                 Se connecter (demo)
                             </button>
 
                             <p className="mt-3 text-center text-xs text-slate-500">
-                                Authentification fictive pour MVP de test.
+                                Connexion fictive pour environnement de test.
                             </p>
                         </form>
 
-                        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-                            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Acces demo rapide</p>
-                            <div className="mt-3 space-y-2">
-                                {demoUsers.map((user) => {
-                                    const colors = roleColors[user.role];
-                                    return (
-                                        <button
-                                            key={`quick-${user.id}`}
-                                            type="button"
-                                            onClick={() => {
-                                                selectDemoRole(user.role);
-                                                runLogin(user.role);
-                                            }}
-                                            className={`flex w-full items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md ${selectedRole === user.role ? `ring-2 ${colors.ring}` : ''}`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${colors.icon}`}>
-                                                    {roleIcons[user.role]}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-semibold text-slate-900">{user.name}</p>
-                                                    <p className="text-xs text-slate-500">{user.description}</p>
-                                                </div>
-                                            </div>
-                                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${colors.chip}`}>
-                                                {roleTitles[user.role]}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
                     </div>
                 </section>
             </div>

@@ -11,7 +11,7 @@ import {
     Package,
 } from 'lucide-react';
 import type { Appointment, Patient, Product } from '../../types';
-import type { MedicalRecordFormData } from '../../schemas';
+import type { InvoiceFormData, MedicalRecordFormData } from '../../schemas';
 
 interface PrescriptionItem {
     productId: string;
@@ -26,7 +26,7 @@ interface ConsultationPanelProps {
     patient: Patient;
     products: Product[];
     onComplete: (record: MedicalRecordFormData, prescribedProducts: PrescriptionItem[]) => void;
-    onInvoice: () => void;
+    onInvoice: (defaultLines?: InvoiceFormData['lines']) => void;
     onClose: () => void;
 }
 
@@ -34,7 +34,34 @@ const speciesEmoji: Record<string, string> = {
     dog: '🐕', cat: '🐈', bird: '🐦', rabbit: '🐇', other: '🐾',
 };
 
+type PerformedType = MedicalRecordFormData['type'];
+
+const appointmentToPerformedType: Record<Appointment['type'], PerformedType> = {
+    consultation: 'consultation',
+    vaccination: 'consultation',
+    surgery: 'surgery',
+    'follow-up': 'follow-up',
+    emergency: 'emergency',
+};
+
+const performedTypeLabel: Record<PerformedType, string> = {
+    consultation: 'Consultation',
+    surgery: 'Operation',
+    emergency: 'Urgence',
+    'follow-up': 'Suivi',
+};
+
+const performedBillingLabel: Record<PerformedType, string> = {
+    consultation: 'Consultation clinique',
+    surgery: 'Intervention chirurgicale',
+    emergency: 'Prise en charge urgence',
+    'follow-up': 'Consultation de suivi',
+};
+
 export function ConsultationPanel({ isOpen, appointment, patient, products, onComplete, onInvoice, onClose }: ConsultationPanelProps) {
+    const defaultPerformedType = appointmentToPerformedType[appointment.type];
+    const [performedType, setPerformedType] = useState<PerformedType>(defaultPerformedType);
+    const [performedProcedure, setPerformedProcedure] = useState('');
     const [diagnosis, setDiagnosis] = useState('');
     const [treatment, setTreatment] = useState('');
     const [notes, setNotes] = useState('');
@@ -65,7 +92,45 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
         return medications.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
     }, [medications, searchQuery]);
 
-    const canComplete = diagnosis.trim() && treatment.trim();
+    const canComplete = diagnosis.trim() && treatment.trim() && performedProcedure.trim();
+    const sortedMedicalHistory = useMemo(
+        () => [...patient.medicalHistory].sort((a, b) => b.date.localeCompare(a.date)),
+        [patient.medicalHistory]
+    );
+    const latestMedicalRecord = sortedMedicalHistory[0];
+    const sortedVaccinations = useMemo(
+        () => [...patient.vaccinations].sort((a, b) => b.date.localeCompare(a.date)),
+        [patient.vaccinations]
+    );
+    const latestVaccination = sortedVaccinations[0];
+    const contraindicationAlerts = patient.alerts.filter(
+        (alert) => alert.type === 'allergy' || /ne pas|eviter|contre/i.test(alert.description)
+    );
+    const criticalAlerts = patient.alerts.filter((alert) => alert.severity === 'high');
+
+    const buildInvoiceDefaults = (): InvoiceFormData['lines'] => {
+        const procedure = performedProcedure.trim();
+        const serviceDescription = `${performedBillingLabel[performedType]}${procedure ? ` - ${procedure}` : ''}`;
+        const serviceLine: InvoiceFormData['lines'][number] = {
+            lineType: 'service',
+            description: serviceDescription,
+            quantity: 1,
+            unitPrice: 0,
+        };
+
+        const productLines: InvoiceFormData['lines'] = prescriptions.map((rx) => {
+            const product = products.find((p) => p.id === rx.productId);
+            return {
+                lineType: 'product',
+                productId: rx.productId,
+                description: rx.productName,
+                quantity: rx.quantity,
+                unitPrice: product?.price ?? 0,
+            };
+        });
+
+        return [serviceLine, ...productLines];
+    };
 
     const addProduct = (product: Product) => {
         const existing = prescriptions.find((p) => p.productId === product.id);
@@ -97,14 +162,12 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
 
     const handleComplete = () => {
         if (!canComplete) return;
-        const typeMap: Record<string, 'consultation' | 'surgery' | 'emergency' | 'follow-up'> = {
-            consultation: 'consultation', vaccination: 'consultation', surgery: 'surgery', 'follow-up': 'follow-up', emergency: 'emergency',
-        };
+        const renderedTreatment = `${performedTypeLabel[performedType]} - ${performedProcedure.trim()} · ${treatment.trim()}`;
         onComplete({
             date: appointment.date,
-            type: typeMap[appointment.type] || 'consultation',
+            type: performedType,
             diagnosis,
-            treatment,
+            treatment: renderedTreatment,
             notes: notes || undefined,
             veterinarian: appointment.veterinarian,
             prescriptions: prescriptions.map((p) => ({
@@ -128,13 +191,16 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                     </div>
                     <h2 className="text-xl font-bold text-slate-900 mb-1">Consultation terminee</h2>
                     <p className="text-slate-400 text-sm mb-2">Dossier medical mis a jour pour {patient.name}</p>
+                    <p className="text-xs text-slate-500 mb-2">
+                        Acte pratique: {performedTypeLabel[performedType]} - {performedProcedure.trim()}
+                    </p>
                     {prescriptions.length > 0 && (
                         <p className="text-xs text-emerald-600 font-medium mb-6">
                             Stock debite pour {prescriptions.length} produit(s)
                         </p>
                     )}
                     <button
-                        onClick={onInvoice}
+                        onClick={() => onInvoice(buildInvoiceDefaults())}
                         className="w-full py-3.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 mb-3"
                     >
                         <Receipt className="w-5 h-5" />
@@ -176,7 +242,7 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                         </span>
                     ) : (
                         <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-                            {patient.medicalHistory.length} visite(s) — Dernier: {patient.medicalHistory[0].diagnosis}
+                            {patient.medicalHistory.length} visite(s) — Dernier: {latestMedicalRecord?.diagnosis ?? 'historique'}
                         </span>
                     )}
                     {patient.alerts.filter((a) => a.severity === 'high').map((a) => (
@@ -193,6 +259,119 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
             {/* Body */}
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-2xl mx-auto px-5 py-8 space-y-8">
+                    <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                                Brief patient avant consultation
+                            </h3>
+                            <span className="text-xs text-slate-500">
+                                {patient.medicalHistory.length} antecedent(s)
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                <p className="text-xs text-slate-500 mb-1">Profil</p>
+                                <p className="text-sm font-semibold text-slate-900">
+                                    {patient.name} · {patient.breed}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {age} · {patient.weight} kg{patient.microchip ? ` · Puce: ${patient.microchip}` : ''}
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                <p className="text-xs text-slate-500 mb-1">Proprietaire</p>
+                                <p className="text-sm font-semibold text-slate-900">
+                                    {patient.owner.firstName} {patient.owner.lastName}
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    {patient.owner.phone} · {patient.owner.email}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 mb-3">
+                            <p className="text-xs font-bold uppercase tracking-wide text-rose-700 mb-2">
+                                Contre-indications et alertes critiques
+                            </p>
+                            {(contraindicationAlerts.length === 0 && criticalAlerts.length === 0) ? (
+                                <p className="text-sm text-emerald-700">Aucune contre-indication signalee.</p>
+                            ) : (
+                                <div className="space-y-1.5">
+                                    {[...new Map(
+                                        [...contraindicationAlerts, ...criticalAlerts].map((alert) => [alert.id, alert])
+                                    ).values()].map((alert) => (
+                                        <p key={alert.id} className="text-sm text-rose-800">
+                                            - {alert.description}
+                                        </p>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                <p className="text-xs text-slate-500 mb-1">Dernier antecedent</p>
+                                {latestMedicalRecord ? (
+                                    <>
+                                        <p className="text-sm font-semibold text-slate-900">{latestMedicalRecord.diagnosis}</p>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            {latestMedicalRecord.date} · {latestMedicalRecord.treatment}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-slate-400">Aucun antecedent medical</p>
+                                )}
+                            </div>
+                            <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                <p className="text-xs text-slate-500 mb-1">Derniere vaccination</p>
+                                {latestVaccination ? (
+                                    <>
+                                        <p className="text-sm font-semibold text-slate-900">{latestVaccination.name}</p>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            {latestVaccination.date} · Rappel {latestVaccination.nextDueDate}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <p className="text-sm text-slate-400">Aucune vaccination enregistree</p>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="rounded-2xl border border-secondary-200 bg-secondary-50 p-4">
+                        <h3 className="text-sm font-bold text-secondary-900 mb-3 uppercase tracking-wide">
+                            Acte pratique
+                        </h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                                    Type d'acte <span className="text-rose-500">*</span>
+                                </label>
+                                <select
+                                    value={performedType}
+                                    onChange={(e) => setPerformedType(e.target.value as PerformedType)}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200 focus:border-secondary-500"
+                                >
+                                    <option value="consultation">Consultation</option>
+                                    <option value="surgery">Operation</option>
+                                    <option value="follow-up">Suivi</option>
+                                    <option value="emergency">Urgence</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                                    Detail de l'acte <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={performedProcedure}
+                                    onChange={(e) => setPerformedProcedure(e.target.value)}
+                                    placeholder="Ex: Suture plaie, detartrage, ovariectomie..."
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200 focus:border-secondary-500 placeholder:text-slate-300"
+                                />
+                            </div>
+                        </div>
+                    </section>
 
                     {/* Diagnostic */}
                     <div>
@@ -212,12 +391,12 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                     {/* Traitement */}
                     <div>
                         <label className="block text-sm font-semibold text-slate-900 mb-2">
-                            Traitement <span className="text-rose-400">*</span>
+                            Traitement et consignes <span className="text-rose-400">*</span>
                         </label>
                         <textarea
                             value={treatment}
                             onChange={(e) => setTreatment(e.target.value)}
-                            placeholder="Soins effectues et a suivre"
+                            placeholder="Medicaments, protocole, recommandations post-acte..."
                             rows={3}
                             className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400 placeholder:text-slate-300"
                         />

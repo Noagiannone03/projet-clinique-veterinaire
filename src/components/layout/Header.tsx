@@ -76,13 +76,13 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
     const roleName = user?.role === 'director' ? 'Directeur' : user?.role === 'veterinarian' ? 'Veterinaire' : 'Assistante';
 
     return (
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 px-4 py-4 backdrop-blur-xl sm:px-8">
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     {/* Mobile hamburger */}
                     <button
                         onClick={openMobile}
-                        className="text-slate-600 transition-colors hover:bg-primary-50 md:hidden p-2 rounded-lg"
+                        className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-primary-50 md:hidden"
                     >
                         <Menu className="w-5 h-5" />
                     </button>
@@ -102,14 +102,14 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
                     {/* Cmd+K */}
                     <button
                         onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
-                        className="group hidden items-center gap-3 rounded-2xl border border-primary-200 bg-gradient-to-r from-primary-50 via-white to-secondary-50 px-4 py-2.5 text-sm text-primary-700 shadow-md shadow-primary-100/70 ring-1 ring-white transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-lg hover:shadow-primary-200/70 sm:flex"
+                        className="group hidden items-center gap-3 rounded-xl border-2 border-primary-200 bg-white px-4 py-2.5 text-sm shadow-[0_4px_14px_rgba(15,118,216,0.12)] transition-all hover:border-primary-300 hover:bg-primary-50/30 sm:flex"
                     >
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-xl bg-primary-100 text-primary-700 transition-colors group-hover:bg-primary-200">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary-100 text-primary-700 transition-colors group-hover:bg-primary-200">
                             <Search className="h-4 w-4" />
                         </span>
                         <span className="hidden text-sm font-semibold tracking-tight text-slate-700 lg:inline">Rechercher un patient, un RDV...</span>
                         <span className="text-sm font-semibold tracking-tight text-slate-700 lg:hidden">Rechercher...</span>
-                        <kbd className="hidden items-center rounded-md border border-primary-200 bg-white px-1.5 py-0.5 font-mono text-xs text-primary-600 lg:inline-flex">
+                        <kbd className="hidden items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-xs text-slate-500 lg:inline-flex">
                             ⌘K
                         </kbd>
                     </button>
@@ -118,7 +118,7 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
                     <div className="relative" ref={notifRef}>
                         <button
                             onClick={() => setShowNotifications(!showNotifications)}
-                            className="relative rounded-xl border border-slate-200 bg-white p-2 transition-all hover:border-primary-200 hover:bg-primary-50"
+                            className="relative rounded-xl border border-slate-200 bg-white p-2 transition-all hover:border-primary-200 hover:bg-primary-50/40"
                         >
                             <Bell className="w-5 h-5 text-slate-600" />
                             {totalAlerts > 0 && (

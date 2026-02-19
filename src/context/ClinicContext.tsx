@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { Appointment, Invoice, Patient, Product, StockMovement, ActivityLogEntry, Payment, MedicalRecord, Vaccination, Alert } from '../types';
+import type {
+    Appointment,
+    Invoice,
+    InvoiceLineInput,
+    Patient,
+    Product,
+    StockMovement,
+    ActivityLogEntry,
+    Payment,
+    MedicalRecord,
+    Vaccination,
+    Alert,
+} from '../types';
 import { appointments as initialAppointments } from '../data/appointments';
 import { invoices as rawInitialInvoices } from '../data/invoices';
 import { products as initialProducts } from '../data/products';
@@ -7,11 +19,22 @@ import { patients as initialPatients } from '../data/patients';
 import { ClinicStateContext, type NewAppointmentInput } from './clinicState';
 import { storage } from '../services/storage';
 
-// Migrate old invoices that don't have payments array
-const initialInvoices: Invoice[] = rawInitialInvoices.map((inv) => ({
-    ...inv,
-    payments: (inv as Invoice).payments || [],
-}));
+function normalizeInvoice(invoice: Invoice): Invoice {
+    return {
+        ...invoice,
+        payments: invoice.payments || [],
+        lines: invoice.lines.map((line) => ({
+            ...line,
+            lineType: line.lineType ?? (line.productId ? 'product' : 'service'),
+        })),
+    };
+}
+
+function normalizeInvoices(list: Invoice[]): Invoice[] {
+    return list.map((invoice) => normalizeInvoice(invoice));
+}
+
+const initialInvoices: Invoice[] = normalizeInvoices(rawInitialInvoices as Invoice[]);
 
 const timeToMinutes = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
@@ -51,7 +74,9 @@ function loadState<T>(key: string, fallback: T): T {
 export function ClinicProvider({ children }: { children: ReactNode }) {
     const [patients, setPatients] = useState<Patient[]>(() => loadState('patients', initialPatients));
     const [appointments, setAppointments] = useState<Appointment[]>(() => loadState('appointments', initialAppointments));
-    const [invoices, setInvoices] = useState<Invoice[]>(() => loadState('invoices', initialInvoices));
+    const [invoices, setInvoices] = useState<Invoice[]>(() =>
+        normalizeInvoices(loadState('invoices', initialInvoices))
+    );
     const [products, setProducts] = useState<Product[]>(() => loadState('products', initialProducts));
     const [stockMovements, setStockMovements] = useState<StockMovement[]>(() => loadState('stockMovements', []));
     const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>(() => loadState('activityLog', []));
@@ -258,13 +283,19 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     }, []);
 
     // ---- INVOICES ----
-    const addInvoice = useCallback((data: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total' | 'lines'> & { lines: { description: string; quantity: number; unitPrice: number }[] }): Invoice => {
+    const addInvoice = useCallback((
+        data: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total' | 'lines'> & {
+            lines: InvoiceLineInput[];
+        }
+    ): Invoice => {
         const lines = data.lines.map((l) => ({
             id: generateId('line'),
             description: l.description,
             quantity: l.quantity,
             unitPrice: l.unitPrice,
             total: l.quantity * l.unitPrice,
+            lineType: l.lineType ?? 'service',
+            productId: l.productId,
         }));
         const subtotal = lines.reduce((sum, l) => sum + l.total, 0);
         const tax = Math.round(subtotal * 0.2 * 100) / 100;

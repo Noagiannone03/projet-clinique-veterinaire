@@ -46,6 +46,14 @@ const typeColor: Record<Appointment['type'], string> = {
     emergency: 'bg-red-100 text-red-700',
 };
 
+const appointmentBillingLabel: Record<Appointment['type'], string> = {
+    consultation: 'Consultation clinique',
+    vaccination: 'Acte de vaccination',
+    surgery: 'Intervention chirurgicale',
+    'follow-up': 'Consultation de suivi',
+    emergency: 'Prise en charge urgence',
+};
+
 const stepConfig: { key: PipelineStatus; label: string; icon: typeof Clock; color: string; bg: string }[] = [
     { key: 'scheduled', label: 'Planifie', icon: Clock, color: 'text-primary-600', bg: 'bg-primary-500' },
     { key: 'arrived', label: 'Arrive', icon: UserCheck, color: 'text-secondary-600', bg: 'bg-secondary-500' },
@@ -62,6 +70,7 @@ export function ClinicDashboard() {
     const [showNewAppointment, setShowNewAppointment] = useState(false);
     const [showInvoiceForm, setShowInvoiceForm] = useState(false);
     const [invoicePatientId, setInvoicePatientId] = useState<string | undefined>(undefined);
+    const [invoiceDefaultLines, setInvoiceDefaultLines] = useState<InvoiceFormData['lines'] | undefined>(undefined);
     const [consultingAppointment, setConsultingAppointment] = useState<Appointment | null>(null);
     const [showCounterSale, setShowCounterSale] = useState(false);
 
@@ -135,14 +144,25 @@ export function ClinicDashboard() {
         toast.success(`Consultation terminee pour ${consultingAppointment.patientName}`);
     };
 
-    const handleInvoice = (apt: Appointment) => {
+    const buildDefaultServiceLine = (apt: Appointment): InvoiceFormData['lines'] => ([
+        {
+            lineType: 'service',
+            description: appointmentBillingLabel[apt.type],
+            quantity: 1,
+            unitPrice: 0,
+        },
+    ]);
+
+    const handleInvoice = (apt: Appointment, defaultLines?: InvoiceFormData['lines']) => {
         setInvoicePatientId(apt.patientId);
+        setInvoiceDefaultLines(defaultLines ?? buildDefaultServiceLine(apt));
         setShowInvoiceForm(true);
         setConsultingAppointment(null);
     };
 
     const handleCounterSale = () => {
         setInvoicePatientId(undefined);
+        setInvoiceDefaultLines(undefined);
         setShowCounterSale(true);
         setShowInvoiceForm(true);
     };
@@ -162,20 +182,27 @@ export function ClinicDashboard() {
     };
 
     const handleNewInvoice = (data: InvoiceFormData) => {
+        const patient = patients.find((p) => p.id === data.patientId);
         const invoice = addInvoice({
-            patientId: data.patientId, patientName: '', ownerName: '',
+            patientId: data.patientId,
+            patientName: patient?.name ?? '',
+            ownerName: patient ? `${patient.owner.firstName} ${patient.owner.lastName}` : '',
             date: new Date().toISOString().split('T')[0],
             dueDate: data.dueDate, lines: data.lines,
         });
         if (showCounterSale) {
             data.lines.forEach((line) => {
-                const product = products.find((p) => p.name === line.description);
+                const product = products.find((p) =>
+                    p.id === line.productId || (line.lineType === 'product' && p.name === line.description)
+                );
                 if (product) adjustProductStock(product.id, -line.quantity, 'counter_sale', `Vente comptoir - Facture ${invoice.invoiceNumber}`);
             });
         }
         toast.success(showCounterSale ? 'Vente comptoir enregistree' : 'Facture creee');
         setShowInvoiceForm(false);
         setShowCounterSale(false);
+        setInvoiceDefaultLines(undefined);
+        setInvoicePatientId(undefined);
     };
 
     const greeting = (() => {
@@ -570,7 +597,18 @@ export function ClinicDashboard() {
 
             {/* Modals */}
             <AppointmentForm isOpen={showNewAppointment} onClose={() => setShowNewAppointment(false)} onSubmit={handleNewAppointment} defaultDate={today} />
-            <InvoiceForm isOpen={showInvoiceForm} onClose={() => { setShowInvoiceForm(false); setShowCounterSale(false); }} onSubmit={handleNewInvoice} defaultPatientId={invoicePatientId} />
+            <InvoiceForm
+                isOpen={showInvoiceForm}
+                onClose={() => {
+                    setShowInvoiceForm(false);
+                    setShowCounterSale(false);
+                    setInvoiceDefaultLines(undefined);
+                    setInvoicePatientId(undefined);
+                }}
+                onSubmit={handleNewInvoice}
+                defaultPatientId={invoicePatientId}
+                defaultLines={invoiceDefaultLines}
+            />
 
             {/* Consultation Panel — vet only */}
             {role === 'veterinarian' && consultingAppointment && consultingPatient && (
@@ -580,7 +618,7 @@ export function ClinicDashboard() {
                     patient={consultingPatient}
                     products={products}
                     onComplete={handleCompleteConsultation}
-                    onInvoice={() => handleInvoice(consultingAppointment)}
+                    onInvoice={(defaultLines) => handleInvoice(consultingAppointment, defaultLines)}
                     onClose={() => setConsultingAppointment(null)}
                 />
             )}

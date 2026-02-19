@@ -110,12 +110,24 @@ export interface StockMovement {
 }
 
 // Billing Types
+export type InvoiceLineType = 'service' | 'product';
+
+export interface InvoiceLineInput {
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    lineType?: InvoiceLineType;
+    productId?: string;
+}
+
 export interface InvoiceLine {
     id: string;
     description: string;
     quantity: number;
     unitPrice: number;
     total: number;
+    lineType?: InvoiceLineType;
+    productId?: string;
 }
 
 export interface Payment {

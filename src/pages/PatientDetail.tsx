@@ -27,6 +27,12 @@ function calculateAge(birthDate: string): string {
     return years === 1 ? `${years} an` : `${years} ans`;
 }
 
+function getPatientPhotoUrl(species: keyof typeof speciesIcons, patientId: string): string {
+    const keyword = species === 'other' ? 'pet' : species;
+    const lock = patientId.replace(/\D/g, '').slice(-6) || '42';
+    return `https://loremflickr.com/640/420/${keyword}?lock=${lock}`;
+}
+
 export function PatientDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -57,6 +63,7 @@ export function PatientDetail() {
 
     const Icon = speciesIcons[patient.species];
     const hasHighAlert = patient.alerts.some((a) => a.severity === 'high');
+    const patientPhotoUrl = getPatientPhotoUrl(patient.species, patient.id);
     const patientAppointments = appointments.filter((a) => a.patientId === patient.id).sort((a, b) => b.date.localeCompare(a.date));
     const patientInvoices = invoices.filter((i) => i.patientId === patient.id);
 
@@ -157,22 +164,37 @@ export function PatientDetail() {
                 )}
 
                 {/* Patient header */}
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
-                        <Icon className="w-8 h-8 text-primary-600" />
-                    </div>
-                    <div className="flex-1">
-                        <h2 className="text-2xl font-bold text-slate-900">{patient.name}</h2>
-                        <p className="text-slate-500">{speciesLabels[patient.species]} - {patient.breed} - {calculateAge(patient.birthDate)}</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Imprimer</Button>
-                        {(role === 'veterinarian' || role === 'assistant') && (
-                            <Button variant="outline" size="sm" icon={<Edit className="w-4 h-4" />} onClick={() => setShowEditPatient(true)}>Modifier</Button>
-                        )}
-                        {role === 'veterinarian' && (
-                            <Button variant="danger" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={() => setShowDeleteConfirm(true)}>Supprimer</Button>
-                        )}
+                <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        <div className="relative h-24 w-36 flex-shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                            <img
+                                src={patientPhotoUrl}
+                                alt={`Photo de ${patient.name}`}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                onError={(event) => {
+                                    event.currentTarget.onerror = null;
+                                    event.currentTarget.src = `https://picsum.photos/seed/${patient.id}-pet-detail/640/420`;
+                                }}
+                            />
+                            <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                                <Icon className="h-3.5 w-3.5" />
+                                {speciesLabels[patient.species]}
+                            </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-2xl font-bold text-slate-900">{patient.name}</h2>
+                            <p className="text-slate-500">{speciesLabels[patient.species]} - {patient.breed} - {calculateAge(patient.birthDate)}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 sm:justify-end">
+                            <Button variant="outline" size="sm" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Imprimer</Button>
+                            {(role === 'veterinarian' || role === 'assistant') && (
+                                <Button variant="outline" size="sm" icon={<Edit className="w-4 h-4" />} onClick={() => setShowEditPatient(true)}>Modifier</Button>
+                            )}
+                            {role === 'veterinarian' && (
+                                <Button variant="danger" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={() => setShowDeleteConfirm(true)}>Supprimer</Button>
+                            )}
+                        </div>
                     </div>
                 </div>
 

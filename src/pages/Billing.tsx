@@ -69,6 +69,58 @@ const paymentMethodLabel: Record<string, string> = {
     transfer: 'Virement',
 };
 
+function resolveLineType(line: Invoice['lines'][number]): 'service' | 'product' {
+    return line.lineType === 'product' ? 'product' : 'service';
+}
+
+interface InvoiceLinesTableProps {
+    title: string;
+    lines: Invoice['lines'];
+    emptyLabel: string;
+}
+
+function InvoiceLinesTable({ title, lines, emptyLabel }: InvoiceLinesTableProps) {
+    const subtotal = lines.reduce((sum, line) => sum + line.total, 0);
+
+    return (
+        <div className="rounded-xl border border-slate-100 overflow-hidden mb-4">
+            <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{title}</p>
+            </div>
+            {lines.length === 0 ? (
+                <p className="px-4 py-3 text-sm text-slate-400">{emptyLabel}</p>
+            ) : (
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100">
+                            <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Designation</th>
+                            <th className="px-4 py-2.5 text-center text-xs font-bold uppercase tracking-wider text-slate-400">Qte</th>
+                            <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">P.U.</th>
+                            <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                        {lines.map((line) => (
+                            <tr key={line.id}>
+                                <td className="px-4 py-2.5 font-medium text-slate-800">{line.description}</td>
+                                <td className="px-4 py-2.5 text-center text-slate-600">{line.quantity}</td>
+                                <td className="px-4 py-2.5 text-right text-slate-600">{line.unitPrice.toFixed(2)} €</td>
+                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">{line.total.toFixed(2)} €</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                    <tfoot>
+                        <tr className="border-t border-slate-200 bg-slate-50">
+                            <td colSpan={3} className="px-4 py-2.5 text-right text-sm font-bold text-slate-700">Sous-total</td>
+                            <td className="px-4 py-2.5 text-right font-bold text-slate-900">{subtotal.toFixed(2)} €</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            )}
+        </div>
+    );
+}
+
 interface InvoiceRowProps {
     invoice: Invoice;
     onRecordPayment: (invoice: Invoice) => void;
@@ -93,6 +145,10 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
 
     const amountRemaining = Math.max(invoice.total - amountPaid, 0);
     const progressPct = invoice.total > 0 ? Math.round((amountPaid / invoice.total) * 100) : 0;
+    const serviceLines = invoice.lines.filter((line) => resolveLineType(line) === 'service');
+    const productLines = invoice.lines.filter((line) => resolveLineType(line) === 'product');
+    const servicesSubtotal = serviceLines.reduce((sum, line) => sum + line.total, 0);
+    const productsSubtotal = productLines.reduce((sum, line) => sum + line.total, 0);
 
     return (
         <>
@@ -218,33 +274,31 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
                             </div>
 
                             {/* Lines */}
-                            <div className="rounded-xl border border-slate-100 overflow-hidden mb-4">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-100">
-                                            <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Prestation</th>
-                                            <th className="px-4 py-2.5 text-center text-xs font-bold uppercase tracking-wider text-slate-400">Qté</th>
-                                            <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">P.U.</th>
-                                            <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {invoice.lines.map((line) => (
-                                            <tr key={line.id}>
-                                                <td className="px-4 py-2.5 font-medium text-slate-800">{line.description}</td>
-                                                <td className="px-4 py-2.5 text-center text-slate-600">{line.quantity}</td>
-                                                <td className="px-4 py-2.5 text-right text-slate-600">{line.unitPrice.toFixed(2)} €</td>
-                                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">{line.total.toFixed(2)} €</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="border-t-2 border-slate-200 bg-slate-50">
-                                            <td colSpan={3} className="px-4 py-2.5 text-right text-sm font-bold text-slate-700">Total TTC</td>
-                                            <td className="px-4 py-2.5 text-right font-bold text-lg text-slate-900">{invoice.total.toFixed(2)} €</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                            <div className="mb-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                                    <div className="rounded-xl border border-primary-200 bg-primary-50 p-3">
+                                        <p className="text-[11px] font-bold uppercase tracking-wide text-primary-700">Prestations</p>
+                                        <p className="text-xl font-bold text-primary-900">{servicesSubtotal.toFixed(2)} €</p>
+                                    </div>
+                                    <div className="rounded-xl border border-secondary-200 bg-secondary-50 p-3">
+                                        <p className="text-[11px] font-bold uppercase tracking-wide text-secondary-700">Produits</p>
+                                        <p className="text-xl font-bold text-secondary-900">{productsSubtotal.toFixed(2)} €</p>
+                                    </div>
+                                </div>
+                                <InvoiceLinesTable
+                                    title="Prestations"
+                                    lines={serviceLines}
+                                    emptyLabel="Aucune prestation sur cette facture"
+                                />
+                                <InvoiceLinesTable
+                                    title="Produits"
+                                    lines={productLines}
+                                    emptyLabel="Aucun produit sur cette facture"
+                                />
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex items-center justify-between">
+                                    <p className="text-sm font-bold text-slate-700">Total TTC</p>
+                                    <p className="text-lg font-bold text-slate-900">{invoice.total.toFixed(2)} €</p>
+                                </div>
                             </div>
 
                             {/* Payment summary */}
@@ -344,7 +398,7 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
 }
 
 export function Billing() {
-    const { invoices, addInvoice, recordPayment } = useClinicData();
+    const { invoices, patients, addInvoice, recordPayment } = useClinicData();
     const { role } = useAuth();
     const toast = useToast();
 
@@ -376,7 +430,19 @@ export function Billing() {
         const pending = invoices.filter((i) => i.status === 'pending' || i.status === 'partial').length;
         const overdue = invoices.filter((i) => i.status === 'overdue').length;
         const encaissementRate = total > 0 ? Math.round((paid / total) * 100) : 0;
-        return { total, paid, pending, overdue, encaissementRate };
+        const services = invoices.reduce(
+            (sum, inv) => sum + inv.lines
+                .filter((line) => resolveLineType(line) === 'service')
+                .reduce((lineSum, line) => lineSum + line.total, 0),
+            0
+        );
+        const products = invoices.reduce(
+            (sum, inv) => sum + inv.lines
+                .filter((line) => resolveLineType(line) === 'product')
+                .reduce((lineSum, line) => lineSum + line.total, 0),
+            0
+        );
+        return { total, paid, pending, overdue, encaissementRate, services, products };
     }, [invoices]);
 
     const countByStatus = useMemo(() => ({
@@ -388,10 +454,11 @@ export function Billing() {
     }), [invoices]);
 
     const handleNewInvoice = (data: InvoiceFormData) => {
+        const patient = patients.find((p) => p.id === data.patientId);
         addInvoice({
             patientId: data.patientId,
-            patientName: '',
-            ownerName: '',
+            patientName: patient?.name ?? '',
+            ownerName: patient ? `${patient.owner.firstName} ${patient.owner.lastName}` : '',
             date: new Date().toISOString().split('T')[0],
             dueDate: data.dueDate,
             lines: data.lines,
@@ -442,6 +509,10 @@ export function Billing() {
                         <p className="mt-1 text-[11px] text-slate-400">
                             {stats.encaissementRate}% encaissé
                         </p>
+                        <div className="mt-2 pt-2 border-t border-slate-100 text-[11px] space-y-0.5">
+                            <p className="text-slate-500">Prestations: <span className="font-semibold text-slate-700">{stats.services.toFixed(0)} €</span></p>
+                            <p className="text-slate-500">Produits: <span className="font-semibold text-slate-700">{stats.products.toFixed(0)} €</span></p>
+                        </div>
                     </div>
 
                     {/* CA Encaissé */}

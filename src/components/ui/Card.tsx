@@ -16,7 +16,7 @@ const paddingClasses = {
 export function Card({ children, className = '', hoverable = false, padding = 'md', onClick }: CardProps) {
     return (
         <div
-            className={`bg-white rounded-xl border border-slate-200 shadow-sm ${paddingClasses[padding]} ${hoverable ? 'transition-shadow hover:shadow-md cursor-pointer' : ''} ${className}`}
+            className={`rounded-2xl border border-slate-200 bg-white shadow-card ${paddingClasses[padding]} ${hoverable ? 'cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-card-hover' : ''} ${className}`}
             onClick={onClick}
             role={onClick ? 'button' : undefined}
             tabIndex={onClick ? 0 : undefined}

@@ -1,57 +1,59 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Header } from '../components/layout';
-import { SearchInput, Button, Badge, EmptyState } from '../components/ui';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import {
     Dog,
     Cat,
     Bird,
     Rabbit,
-    AlertTriangle,
-    ChevronRight,
-    Syringe,
-    Plus,
     PawPrint,
-    ArrowRight,
-    CalendarClock,
-    ShieldAlert,
     Users,
-    Calendar,
+    CalendarDays,
+    ShieldAlert,
+    Syringe,
+    Clock3,
+    AlertTriangle,
+    CalendarClock,
+    Plus,
+    ChevronRight,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { Header } from '../components/layout';
+import { SearchInput, Button, Badge, EmptyState } from '../components/ui';
+import { AppointmentForm, PatientForm } from '../components/forms';
 import { useClinicData } from '../context/clinicState';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
-import { AppointmentForm, PatientForm } from '../components/forms';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import type { Appointment, Patient } from '../types';
 import type { AppointmentFormData, PatientFormData } from '../schemas';
 
-const speciesIcons = { dog: Dog, cat: Cat, bird: Bird, rabbit: Rabbit, other: Dog };
-const speciesLabel: Record<string, string> = {
+type WorkflowFilter = 'all' | 'today' | 'alerts' | 'vaccines' | 'no-upcoming';
+type SpeciesFilter = 'all' | Patient['species'];
+
+const speciesIcons: Record<Patient['species'], LucideIcon> = {
+    dog: Dog,
+    cat: Cat,
+    bird: Bird,
+    rabbit: Rabbit,
+    other: PawPrint,
+};
+
+const speciesLabel: Record<Patient['species'], string> = {
     dog: 'Chien',
     cat: 'Chat',
     bird: 'Oiseau',
     rabbit: 'Lapin',
     other: 'Autre',
 };
-const speciesColors: Record<string, { bg: string; text: string; ring: string }> = {
-    dog: { bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200' },
-    cat: { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', ring: 'ring-fuchsia-200' },
-    bird: { bg: 'bg-primary-50', text: 'text-primary-700', ring: 'ring-primary-200' },
-    rabbit: { bg: 'bg-pink-50', text: 'text-pink-700', ring: 'ring-pink-200' },
-    other: { bg: 'bg-slate-50', text: 'text-slate-700', ring: 'ring-slate-200' },
-};
-
-type WorkflowFilter = 'all' | 'today' | 'alerts' | 'vaccines' | 'no-upcoming';
 
 function hasUpcomingVaccination(patient: Patient, days: number): boolean {
     const now = new Date();
     const target = new Date();
     target.setDate(target.getDate() + days);
     return patient.vaccinations.some((v) => {
-        const due = new Date(v.nextDueDate);
-        return due >= now && due <= target;
+        const dueDate = new Date(v.nextDueDate);
+        return dueDate >= now && dueDate <= target;
     });
 }
 
@@ -59,38 +61,54 @@ function toAppointmentDateTime(appointment: Appointment): Date {
     return new Date(`${appointment.date}T${appointment.time}:00`);
 }
 
+function getPriorityLabel(hasHighAlert: boolean, hasToday: boolean, hasVaccineDue: boolean, hasUpcoming: boolean): {
+    label: string;
+    badge: 'danger' | 'warning' | 'info' | 'neutral';
+} {
+    if (hasHighAlert) return { label: 'Urgent', badge: 'danger' };
+    if (hasToday) return { label: "Aujourd'hui", badge: 'info' };
+    if (hasVaccineDue) return { label: 'Vaccin a relancer', badge: 'warning' };
+    if (!hasUpcoming) return { label: 'A planifier', badge: 'neutral' };
+    return { label: 'Suivi normal', badge: 'neutral' };
+}
+
+function getPatientPhotoUrl(patient: Patient): string {
+    const keyword = patient.species === 'other' ? 'pet' : patient.species;
+    const lock = patient.id.replace(/\D/g, '').slice(-6) || '42';
+    return `https://loremflickr.com/640/420/${keyword}?lock=${lock}`;
+}
+
 export function Patients() {
     const { patients, appointments, addPatient, addAppointment } = useClinicData();
     const { role } = useAuth();
     const toast = useToast();
+
+    const canManagePatients = role === 'assistant' || role === 'veterinarian';
+    const pageSize = 12;
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
+
     const [searchQuery, setSearchQuery] = useState('');
-    const [speciesFilter, setSpeciesFilter] = useState('all');
+    const [speciesFilter, setSpeciesFilter] = useState<SpeciesFilter>('all');
     const [workflowFilter, setWorkflowFilter] = useState<WorkflowFilter>(role === 'assistant' ? 'today' : 'all');
+    const [page, setPage] = useState(1);
     const [showNewPatient, setShowNewPatient] = useState(false);
     const [showQuickAppointment, setShowQuickAppointment] = useState(false);
     const [quickAppointmentPatientId, setQuickAppointmentPatientId] = useState<string | null>(null);
-    const [page, setPage] = useState(1);
-
-    const pageSize = 15;
-    const todayKey = format(new Date(), 'yyyy-MM-dd');
 
     const activeAppointments = useMemo(
-        () => appointments.filter((a) => a.status !== 'cancelled'),
+        () => appointments.filter((appointment) => appointment.status !== 'cancelled'),
         [appointments]
     );
 
     const appointmentsByPatient = useMemo(() => {
         const map = new Map<string, Appointment[]>();
         activeAppointments.forEach((appointment) => {
-            const existing = map.get(appointment.patientId) ?? [];
-            existing.push(appointment);
-            map.set(appointment.patientId, existing);
+            const items = map.get(appointment.patientId) ?? [];
+            items.push(appointment);
+            map.set(appointment.patientId, items);
         });
         map.forEach((items, key) => {
-            map.set(
-                key,
-                [...items].sort((a, b) => toAppointmentDateTime(a).getTime() - toAppointmentDateTime(b).getTime())
-            );
+            map.set(key, [...items].sort((a, b) => toAppointmentDateTime(a).getTime() - toAppointmentDateTime(b).getTime()));
         });
         return map;
     }, [activeAppointments]);
@@ -99,11 +117,10 @@ export function Patients() {
         const now = new Date();
         const map = new Map<string, Appointment | null>();
         patients.forEach((patient) => {
-            const next =
-                (appointmentsByPatient.get(patient.id) ?? []).find(
-                    (a) => toAppointmentDateTime(a).getTime() >= now.getTime()
-                ) ?? null;
-            map.set(patient.id, next);
+            const nextAppointment = (appointmentsByPatient.get(patient.id) ?? []).find(
+                (appointment) => toAppointmentDateTime(appointment).getTime() >= now.getTime()
+            ) ?? null;
+            map.set(patient.id, nextAppointment);
         });
         return map;
     }, [appointmentsByPatient, patients]);
@@ -111,61 +128,66 @@ export function Patients() {
     const hasTodayAppointment = useMemo(() => {
         const map = new Map<string, boolean>();
         patients.forEach((patient) => {
-            map.set(
-                patient.id,
-                (appointmentsByPatient.get(patient.id) ?? []).some((a) => a.date === todayKey)
-            );
+            const hasToday = (appointmentsByPatient.get(patient.id) ?? []).some((appointment) => appointment.date === todayKey);
+            map.set(patient.id, hasToday);
         });
         return map;
     }, [appointmentsByPatient, patients, todayKey]);
 
-    const filtered = useMemo(() => {
-        const q = searchQuery.toLowerCase().trim();
+    const filteredPatients = useMemo(() => {
+        const query = searchQuery.toLowerCase().trim();
         return patients
             .filter((patient) => {
                 const matchesSearch =
-                    !q ||
-                    patient.name.toLowerCase().includes(q) ||
-                    patient.owner.firstName.toLowerCase().includes(q) ||
-                    patient.owner.lastName.toLowerCase().includes(q) ||
-                    patient.breed.toLowerCase().includes(q) ||
-                    patient.microchip?.toLowerCase().includes(q);
+                    !query ||
+                    patient.name.toLowerCase().includes(query) ||
+                    patient.owner.firstName.toLowerCase().includes(query) ||
+                    patient.owner.lastName.toLowerCase().includes(query) ||
+                    patient.breed.toLowerCase().includes(query) ||
+                    patient.microchip?.toLowerCase().includes(query);
                 const matchesSpecies = speciesFilter === 'all' || patient.species === speciesFilter;
-                const highAlert = patient.alerts.some((a) => a.severity === 'high');
-                const vaccineDue = hasUpcomingVaccination(patient, 60);
+
+                const hasHighAlert = patient.alerts.some((alert) => alert.severity === 'high');
+                const hasVaccineDue = hasUpcomingVaccination(patient, 60);
                 const hasToday = hasTodayAppointment.get(patient.id) ?? false;
                 const hasUpcoming = !!upcomingByPatient.get(patient.id);
                 const matchesWorkflow =
                     workflowFilter === 'all' ||
                     (workflowFilter === 'today' && hasToday) ||
-                    (workflowFilter === 'alerts' && highAlert) ||
-                    (workflowFilter === 'vaccines' && vaccineDue) ||
+                    (workflowFilter === 'alerts' && hasHighAlert) ||
+                    (workflowFilter === 'vaccines' && hasVaccineDue) ||
                     (workflowFilter === 'no-upcoming' && !hasUpcoming);
+
                 return matchesSearch && matchesSpecies && matchesWorkflow;
             })
             .sort((a, b) => {
-                const aAlert = a.alerts.some((al) => al.severity === 'high') ? 1 : 0;
-                const bAlert = b.alerts.some((al) => al.severity === 'high') ? 1 : 0;
-                if (aAlert !== bAlert) return bAlert - aAlert;
+                const aCritical = a.alerts.some((alert) => alert.severity === 'high') ? 1 : 0;
+                const bCritical = b.alerts.some((alert) => alert.severity === 'high') ? 1 : 0;
+                if (aCritical !== bCritical) return bCritical - aCritical;
+
                 const aToday = hasTodayAppointment.get(a.id) ? 1 : 0;
                 const bToday = hasTodayAppointment.get(b.id) ? 1 : 0;
                 if (aToday !== bToday) return bToday - aToday;
-                const aUpcoming = upcomingByPatient.get(a.id);
-                const bUpcoming = upcomingByPatient.get(b.id);
-                const aTime = aUpcoming ? toAppointmentDateTime(aUpcoming).getTime() : Number.POSITIVE_INFINITY;
-                const bTime = bUpcoming ? toAppointmentDateTime(bUpcoming).getTime() : Number.POSITIVE_INFINITY;
-                return aTime - bTime;
+
+                const nextA = upcomingByPatient.get(a.id);
+                const nextB = upcomingByPatient.get(b.id);
+                const timeA = nextA ? toAppointmentDateTime(nextA).getTime() : Number.POSITIVE_INFINITY;
+                const timeB = nextB ? toAppointmentDateTime(nextB).getTime() : Number.POSITIVE_INFINITY;
+                if (timeA !== timeB) return timeA - timeB;
+
+                return a.name.localeCompare(b.name);
             });
     }, [hasTodayAppointment, patients, searchQuery, speciesFilter, upcomingByPatient, workflowFilter]);
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-    const paginated = filtered.slice((page - 1) * pageSize, page * pageSize);
-    const quickAppointmentPatient = patients.find((p) => p.id === quickAppointmentPatientId) ?? null;
+    const totalPages = Math.max(1, Math.ceil(filteredPatients.length / pageSize));
+    const currentPage = Math.min(page, totalPages);
+    const paginatedPatients = filteredPatients.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const quickAppointmentPatient = patients.find((patient) => patient.id === quickAppointmentPatientId) ?? null;
 
-    const patientsWithAlerts = patients.filter((p) => p.alerts.some((a) => a.severity === 'high')).length;
-    const patientsWithTodayAppointments = Array.from(hasTodayAppointment.values()).filter(Boolean).length;
-    const patientsWithoutUpcoming = patients.length - Array.from(upcomingByPatient.values()).filter(Boolean).length;
-    const patientsWithVaccines = patients.filter((p) => hasUpcomingVaccination(p, 60)).length;
+    const countAlerts = patients.filter((patient) => patient.alerts.some((alert) => alert.severity === 'high')).length;
+    const countToday = Array.from(hasTodayAppointment.values()).filter(Boolean).length;
+    const countVaccines = patients.filter((patient) => hasUpcomingVaccination(patient, 60)).length;
+    const countNoUpcoming = patients.length - Array.from(upcomingByPatient.values()).filter(Boolean).length;
 
     const handleCreatePatient = (data: PatientFormData) => {
         addPatient({
@@ -176,9 +198,9 @@ export function Patients() {
             weight: data.weight,
             color: data.color,
             microchip: data.microchip,
-            owner: { id: `own-${Date.now()}`, ...data.owner },
+            owner: { id: `owner-${Date.now()}`, ...data.owner },
         });
-        toast.success('Patient créé avec succès');
+        toast.success('Patient cree avec succes');
     };
 
     const openQuickAppointment = (patientId: string) => {
@@ -192,6 +214,7 @@ export function Patients() {
             toast.error('Patient introuvable');
             return;
         }
+
         const result = addAppointment({
             ...data,
             patientId: patient.id,
@@ -200,357 +223,259 @@ export function Patients() {
             species: patient.species,
             duration: Number(data.duration),
         });
+
         if (!result.ok) {
             toast.error(result.message);
             return;
         }
-        toast.success('Rendez-vous planifié');
+
+        toast.success('Rendez-vous planifie');
         setShowQuickAppointment(false);
     };
 
     return (
         <div>
-            <Header title="Patients" subtitle={`${patients.length} patients enregistrés`} />
+            <Header title="Base patients" subtitle={`${patients.length} dossiers actifs`} />
 
-            <div className="space-y-5 p-4 sm:p-6">
-
-                {/* ── Stat strip ── */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {[
-                        {
-                            key: 'all',
-                            label: 'Total patients',
-                            value: patients.length,
-                            Icon: Users,
-                            color: 'text-slate-700',
-                            bg: 'bg-slate-100',
-                            iconColor: 'text-slate-500',
-                        },
-                        {
-                            key: 'today',
-                            label: "Aujourd'hui",
-                            value: patientsWithTodayAppointments,
-                            Icon: Calendar,
-                            color: 'text-blue-700',
-                            bg: 'bg-blue-100',
-                            iconColor: 'text-blue-500',
-                        },
-                        {
-                            key: 'alerts',
-                            label: 'Alertes critiques',
-                            value: patientsWithAlerts,
-                            Icon: ShieldAlert,
-                            color: 'text-rose-700',
-                            bg: 'bg-rose-100',
-                            iconColor: 'text-rose-500',
-                        },
-                        {
-                            key: 'vaccines',
-                            label: 'Vaccins à relancer',
-                            value: patientsWithVaccines,
-                            Icon: Syringe,
-                            color: 'text-amber-700',
-                            bg: 'bg-amber-100',
-                            iconColor: 'text-amber-500',
-                        },
-                    ].map(({ key, label, value, Icon, color, bg, iconColor }) => (
-                        <button
-                            key={key}
-                            type="button"
-                            onClick={() => {
-                                setWorkflowFilter(key as WorkflowFilter);
-                                setPage(1);
-                            }}
-                            className={`flex items-center gap-3 rounded-2xl border bg-white p-4 text-left transition hover:shadow-sm ${
-                                workflowFilter === key
-                                    ? 'border-slate-300 shadow-sm ring-2 ring-slate-200'
-                                    : 'border-slate-200 hover:border-slate-300'
-                            }`}
-                        >
-                            <div className={`rounded-xl p-2.5 flex-shrink-0 ${bg}`}>
-                                <Icon className={`h-4 w-4 ${iconColor}`} />
-                            </div>
-                            <div>
-                                <p className={`text-2xl font-bold leading-none ${color}`}>{value}</p>
-                                <p className="text-xs text-slate-500 mt-0.5 leading-tight">{label}</p>
-                            </div>
-                        </button>
-                    ))}
-                </div>
-
-                {/* ── Filters + Table ── */}
-                <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-
-                    {/* Toolbar */}
-                    <div className="border-b border-slate-100 p-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-
-                            {/* Search + species */}
-                            <div className="flex flex-wrap items-center gap-2">
-                                <SearchInput
-                                    value={searchQuery}
-                                    onChange={(value) => {
-                                        setSearchQuery(value);
-                                        setPage(1);
-                                    }}
-                                    placeholder="Nom, propriétaire, race, micropuce..."
-                                    className="w-full sm:w-72"
-                                />
-                                <div className="flex flex-wrap gap-1">
-                                    {[
-                                        { value: 'all', label: 'Toutes espèces' },
-                                        { value: 'dog', label: '🐕 Chiens' },
-                                        { value: 'cat', label: '🐈 Chats' },
-                                        { value: 'bird', label: '🐦 Oiseaux' },
-                                        { value: 'rabbit', label: '🐇 Lapins' },
-                                    ].map((item) => (
-                                        <button
-                                            key={item.value}
-                                            type="button"
-                                            onClick={() => {
-                                                setSpeciesFilter(item.value);
-                                                setPage(1);
-                                            }}
-                                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                                                speciesFilter === item.value
-                                                    ? 'border-slate-800 bg-slate-900 text-white'
-                                                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                                            }`}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Workflow tabs */}
-                            <div className="flex flex-wrap items-center gap-2">
-                                {[
-                                    { key: 'all', label: 'Tous', count: patients.length },
-                                    { key: 'today', label: "Aujourd'hui", count: patientsWithTodayAppointments },
-                                    { key: 'alerts', label: 'Alertes', count: patientsWithAlerts },
-                                    { key: 'vaccines', label: 'Vaccins', count: patientsWithVaccines },
-                                    { key: 'no-upcoming', label: 'Sans RDV', count: patientsWithoutUpcoming },
-                                ].map((item) => (
-                                    <button
-                                        key={item.key}
-                                        type="button"
-                                        onClick={() => {
-                                            setWorkflowFilter(item.key as WorkflowFilter);
-                                            setPage(1);
-                                        }}
-                                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                                            workflowFilter === item.key
-                                                ? 'border-primary-300 bg-primary-50 text-primary-700'
-                                                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                                        }`}
-                                    >
-                                        {item.label}
-                                        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                                            workflowFilter === item.key ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500'
-                                        }`}>
-                                            {item.count}
-                                        </span>
-                                    </button>
-                                ))}
-                                {(role === 'assistant' || role === 'veterinarian') && (
-                                    <Button icon={<Plus className="h-4 w-4" />} onClick={() => setShowNewPatient(true)}>
-                                        Nouveau patient
-                                    </Button>
-                                )}
-                            </div>
+            <div className="space-y-6 p-4 sm:p-6">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="w-full xl:max-w-xl">
+                            <SearchInput
+                                value={searchQuery}
+                                onChange={(value) => {
+                                    setSearchQuery(value);
+                                    setPage(1);
+                                }}
+                                placeholder="Chercher un patient, un proprietaire, une micropuce..."
+                                className="w-full"
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                {filteredPatients.length} resultat{filteredPatients.length > 1 ? 's' : ''}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setSpeciesFilter('all');
+                                    setWorkflowFilter('all');
+                                    setPage(1);
+                                }}
+                                className="inline-flex items-center rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                            >
+                                Reinitialiser
+                            </button>
+                            {canManagePatients && (
+                                <Button icon={<Plus className="h-4 w-4" />} onClick={() => setShowNewPatient(true)}>
+                                    Nouveau patient
+                                </Button>
+                            )}
                         </div>
                     </div>
 
-                    {/* Table */}
-                    {paginated.length === 0 ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        {[
+                            { key: 'all', label: 'Tous', count: patients.length, Icon: Users },
+                            { key: 'today', label: "Aujourd'hui", count: countToday, Icon: CalendarDays },
+                            { key: 'alerts', label: 'Alertes', count: countAlerts, Icon: ShieldAlert },
+                            { key: 'vaccines', label: 'Vaccins', count: countVaccines, Icon: Syringe },
+                            { key: 'no-upcoming', label: 'Sans RDV', count: countNoUpcoming, Icon: Clock3 },
+                        ].map((item) => (
+                            <button
+                                key={item.key}
+                                type="button"
+                                onClick={() => {
+                                    setWorkflowFilter(item.key as WorkflowFilter);
+                                    setPage(1);
+                                }}
+                                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-all ${workflowFilter === item.key
+                                    ? 'border-primary-300 bg-primary-50 text-primary-700'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                                    }`}
+                            >
+                                <item.Icon className="h-3.5 w-3.5" />
+                                {item.label}
+                                <span className={`rounded-md px-1.5 py-0.5 text-[10px] ${workflowFilter === item.key ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500'}`}>
+                                    {item.count}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-1">
+                        {[
+                            { key: 'all', label: 'Toutes' },
+                            { key: 'dog', label: 'Chiens' },
+                            { key: 'cat', label: 'Chats' },
+                            { key: 'bird', label: 'Oiseaux' },
+                            { key: 'rabbit', label: 'Lapins' },
+                            { key: 'other', label: 'Autres' },
+                        ].map((item) => (
+                            <button
+                                key={item.key}
+                                type="button"
+                                onClick={() => {
+                                    setSpeciesFilter(item.key as SpeciesFilter);
+                                    setPage(1);
+                                }}
+                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${speciesFilter === item.key
+                                    ? 'border-slate-800 bg-slate-900 text-white'
+                                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                    <div className="border-b border-slate-100 px-4 py-3">
+                        <p className="text-base font-semibold text-slate-900">Patients</p>
+                    </div>
+
+                    {paginatedPatients.length === 0 ? (
                         <div className="py-12">
                             <EmptyState
                                 icon={<PawPrint className="h-8 w-8" />}
-                                title="Aucun patient trouvé"
-                                description="Modifiez vos filtres ou créez un nouveau patient"
-                                actionLabel={role !== 'director' ? 'Nouveau patient' : undefined}
-                                onAction={() => setShowNewPatient(true)}
+                                title="Aucun patient trouve"
+                                description="Ajustez vos filtres ou creez un nouveau dossier patient."
+                                actionLabel={canManagePatients ? 'Nouveau patient' : undefined}
+                                onAction={canManagePatients ? () => setShowNewPatient(true) : undefined}
                             />
                         </div>
                     ) : (
-                        <>
-                            {/* Desktop table */}
-                            <div className="hidden lg:block">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b border-slate-100 bg-slate-50/80">
-                                            <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Patient</th>
-                                            <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Propriétaire</th>
-                                            <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Prochain RDV</th>
-                                            <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Signaux</th>
-                                            <th className="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {paginated.map((patient) => {
-                                            const Icon = speciesIcons[patient.species];
-                                            const colors = speciesColors[patient.species];
-                                            const next = upcomingByPatient.get(patient.id);
-                                            const highAlert = patient.alerts.some((a) => a.severity === 'high');
-                                            const vaccineDue = hasUpcomingVaccination(patient, 60);
-                                            const hasToday = hasTodayAppointment.get(patient.id) ?? false;
-                                            return (
-                                                <tr key={patient.id} className="hover:bg-slate-50/70 transition-colors">
-                                                    <td className="px-5 py-3.5">
-                                                        <Link to={`/patients/${patient.id}`} className="flex items-center gap-3 group">
-                                                            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ring-1 ${colors.bg} ${colors.ring} flex-shrink-0`}>
-                                                                <Icon className={`h-5 w-5 ${colors.text}`} />
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-bold text-slate-900 group-hover:text-primary-700 transition-colors">{patient.name}</p>
-                                                                <p className="text-xs text-slate-400">{patient.breed} · {speciesLabel[patient.species]}</p>
-                                                            </div>
-                                                        </Link>
-                                                    </td>
-                                                    <td className="px-5 py-3.5">
-                                                        <p className="font-medium text-slate-800">{patient.owner.firstName} {patient.owner.lastName}</p>
-                                                        {patient.owner.phone && (
-                                                            <p className="text-xs text-slate-400">{patient.owner.phone}</p>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-5 py-3.5">
-                                                        {next ? (
-                                                            <div>
-                                                                <p className="font-bold text-slate-800">
-                                                                    {format(toAppointmentDateTime(next), 'dd MMM', { locale: fr })} à {format(toAppointmentDateTime(next), 'HH:mm')}
-                                                                </p>
-                                                                <p className="text-xs text-slate-400">{next.veterinarian}</p>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="inline-flex items-center gap-1 text-xs text-slate-400 bg-slate-100 rounded-lg px-2 py-1">
-                                                                Aucun RDV futur
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-5 py-3.5">
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {highAlert && (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600 ring-1 ring-rose-200">
-                                                                    <AlertTriangle className="h-3 w-3" /> Critique
-                                                                </span>
-                                                            )}
-                                                            {vaccineDue && (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600 ring-1 ring-amber-200">
-                                                                    <Syringe className="h-3 w-3" /> Vaccin
-                                                                </span>
-                                                            )}
-                                                            {hasToday && (
-                                                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 ring-1 ring-blue-200">
-                                                                    Aujourd'hui
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-5 py-3.5">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <Link
-                                                                to={`/patients/${patient.id}`}
-                                                                className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                                                            >
-                                                                Fiche <ChevronRight className="h-3.5 w-3.5" />
-                                                            </Link>
-                                                            {(role === 'assistant' || role === 'veterinarian') && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    icon={<CalendarClock className="h-3.5 w-3.5" />}
-                                                                    onClick={() => openQuickAppointment(patient.id)}
-                                                                >
-                                                                    RDV rapide
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                            {paginatedPatients.map((patient) => {
+                                const Icon = speciesIcons[patient.species];
+                                const nextAppointment = upcomingByPatient.get(patient.id);
+                                const hasHighAlert = patient.alerts.some((alert) => alert.severity === 'high');
+                                const hasVaccineDue = hasUpcomingVaccination(patient, 60);
+                                const hasToday = hasTodayAppointment.get(patient.id) ?? false;
+                                const priority = getPriorityLabel(hasHighAlert, hasToday, hasVaccineDue, !!nextAppointment);
+                                const photoUrl = getPatientPhotoUrl(patient);
 
-                            {/* Mobile cards */}
-                            <div className="grid grid-cols-1 gap-3 p-4 lg:hidden">
-                                {paginated.map((patient) => {
-                                    const Icon = speciesIcons[patient.species];
-                                    const colors = speciesColors[patient.species];
-                                    const next = upcomingByPatient.get(patient.id);
-                                    const highAlert = patient.alerts.some((a) => a.severity === 'high');
-                                    const vaccineDue = hasUpcomingVaccination(patient, 60);
                                     return (
-                                        <div key={patient.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                                        <article
+                                            key={patient.id}
+                                            className={`rounded-xl border bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${hasHighAlert ? 'border-rose-200' : 'border-slate-200'}`}
+                                        >
                                             <div className="flex items-start gap-3">
-                                                <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ring-1 ${colors.bg} ${colors.ring}`}>
-                                                    <Icon className={`h-5 w-5 ${colors.text}`} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <p className="font-bold text-slate-900">{patient.name}</p>
-                                                        {highAlert && <AlertTriangle className="h-4 w-4 text-rose-500 flex-shrink-0" />}
+                                                <div className="relative h-20 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                                                    <img
+                                                        src={photoUrl}
+                                                        alt={`Photo de ${patient.name}`}
+                                                        loading="lazy"
+                                                        className="h-full w-full object-cover"
+                                                        onError={(event) => {
+                                                            event.currentTarget.src = `https://picsum.photos/seed/${patient.id}-pet/640/420`;
+                                                        }}
+                                                    />
+                                                    <div className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+                                                        <Icon className="h-3 w-3" />
+                                                        {speciesLabel[patient.species]}
                                                     </div>
-                                                    <p className="text-xs text-slate-500">{patient.breed}</p>
-                                                    <p className="text-xs text-slate-400 mt-0.5">
-                                                        {patient.owner.firstName} {patient.owner.lastName}
-                                                    </p>
-                                                    {next && (
-                                                        <p className="mt-1.5 text-xs font-semibold text-primary-700">
-                                                            Prochain : {format(toAppointmentDateTime(next), 'dd MMM', { locale: fr })} à {format(toAppointmentDateTime(next), 'HH:mm')}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <Link to={`/patients/${patient.id}`} className="text-sm font-bold text-slate-900 transition hover:text-primary-700">
+                                                        {patient.name}
+                                                    </Link>
+                                                    <p className="truncate text-xs text-slate-500">{patient.breed}</p>
+                                                    <p className="mt-1 truncate text-xs text-slate-600">{patient.owner.firstName} {patient.owner.lastName}</p>
+                                                    <p className="truncate text-xs text-slate-500">{patient.owner.phone || 'Tel non renseigne'}</p>
+                                                    {nextAppointment ? (
+                                                        <p className="mt-1 truncate text-xs font-semibold text-slate-700">
+                                                            RDV: {format(toAppointmentDateTime(nextAppointment), 'dd MMM HH:mm', { locale: fr })}
                                                         </p>
+                                                    ) : (
+                                                        <p className="mt-1 text-xs font-semibold text-secondary-700">RDV non planifie</p>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                                    {highAlert && <Badge variant="danger">Critique</Badge>}
-                                                    {vaccineDue && <Badge variant="warning"><Syringe className="h-3 w-3 mr-0.5" />Vaccin</Badge>}
+                                                <div className="ml-1">
+                                                    <Badge variant={priority.badge}>{priority.label}</Badge>
                                                 </div>
                                             </div>
-                                            <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-100">
-                                                <Link
-                                                    to={`/patients/${patient.id}`}
-                                                    className="inline-flex items-center gap-1 text-xs font-bold text-primary-700"
-                                                >
-                                                    Voir la fiche <ArrowRight className="h-3.5 w-3.5" />
-                                                </Link>
-                                                {(role === 'assistant' || role === 'veterinarian') && (
-                                                    <Button
-                                                        size="sm"
-                                                        icon={<CalendarClock className="h-3.5 w-3.5" />}
-                                                        onClick={() => openQuickAppointment(patient.id)}
-                                                    >
-                                                        RDV rapide
-                                                    </Button>
+
+                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                                {hasHighAlert && (
+                                                    <Badge variant="danger">
+                                                        <AlertTriangle className="h-3 w-3" />
+                                                        Critique
+                                                    </Badge>
+                                                )}
+                                                {hasVaccineDue && (
+                                                    <Badge variant="warning">
+                                                        <Syringe className="h-3 w-3" />
+                                                        Vaccin
+                                                    </Badge>
+                                                )}
+                                                {hasToday && <Badge variant="info">Aujourd&apos;hui</Badge>}
+                                                {!hasHighAlert && !hasVaccineDue && !hasToday && (
+                                                    <span className="text-xs text-slate-400">RAS</span>
                                                 )}
                                             </div>
-                                        </div>
+
+                                            <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">
+                                                <Link
+                                                    to={`/patients/${patient.id}`}
+                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700"
+                                                >
+                                                    Voir fiche
+                                                    <ChevronRight className="h-3.5 w-3.5" />
+                                                </Link>
+                                                {canManagePatients && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openQuickAppointment(patient.id)}
+                                                        className="inline-flex items-center gap-1 rounded-md border border-primary-200 bg-primary-50 px-2 py-1 text-xs font-semibold text-primary-700 transition hover:bg-primary-100"
+                                                    >
+                                                        <CalendarClock className="h-3.5 w-3.5" />
+                                                        Planifier
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </article>
                                     );
                                 })}
-                            </div>
-                        </>
+                        </div>
                     )}
 
-                    {/* Pagination */}
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between border-t border-slate-100 p-4">
                             <p className="text-sm text-slate-500">
-                                {filtered.length} patient{filtered.length !== 1 ? 's' : ''} · page {page}/{totalPages}
+                                {filteredPatients.length} patient{filteredPatients.length > 1 ? 's' : ''} · page {currentPage}/{totalPages}
                             </p>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                                    Précédent
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage <= 1}
+                                    onClick={() => setPage(Math.max(1, currentPage - 1))}
+                                >
+                                    Precedent
                                 </Button>
-                                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={currentPage >= totalPages}
+                                    onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                                >
                                     Suivant
                                 </Button>
                             </div>
                         </div>
                     )}
-                </div>
+                </section>
             </div>
 
-            <PatientForm isOpen={showNewPatient} onClose={() => setShowNewPatient(false)} onSubmit={handleCreatePatient} />
+            <PatientForm
+                isOpen={showNewPatient}
+                onClose={() => setShowNewPatient(false)}
+                onSubmit={handleCreatePatient}
+            />
+
             <AppointmentForm
                 isOpen={showQuickAppointment}
                 onClose={() => setShowQuickAppointment(false)}

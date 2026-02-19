@@ -42,9 +42,19 @@ export const productSchema = z.object({
 });
 
 export const invoiceLineSchema = z.object({
+    lineType: z.enum(['service', 'product']),
+    productId: z.string().optional(),
     description: z.string().min(1, 'Description requise'),
     quantity: z.coerce.number().min(1, 'Quantite minimum 1'),
     unitPrice: z.coerce.number().positive('Prix unitaire requis'),
+}).superRefine((line, ctx) => {
+    if (line.lineType === 'product' && !line.productId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['description'],
+            message: 'Le produit selectionne est invalide',
+        });
+    }
 });
 
 export const invoiceSchema = z.object({

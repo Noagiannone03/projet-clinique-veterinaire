@@ -1,5 +1,17 @@
 import { createContext, useContext } from 'react';
-import type { Appointment, Invoice, Patient, Product, StockMovement, ActivityLogEntry, Payment, MedicalRecord, Vaccination, Alert } from '../types';
+import type {
+    Appointment,
+    Invoice,
+    InvoiceLineInput,
+    Patient,
+    Product,
+    StockMovement,
+    ActivityLogEntry,
+    Payment,
+    MedicalRecord,
+    Vaccination,
+    Alert,
+} from '../types';
 
 export interface NewAppointmentInput {
     patientId?: string;
@@ -50,7 +62,11 @@ export interface ClinicContextValue {
     adjustProductStock: (productId: string, delta: number, reason?: StockMovement['reason'], note?: string) => void;
 
     // Invoices CRUD
-    addInvoice: (invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total' | 'lines'> & { lines: { description: string; quantity: number; unitPrice: number }[] }) => Invoice;
+    addInvoice: (
+        invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total' | 'lines'> & {
+            lines: InvoiceLineInput[];
+        }
+    ) => Invoice;
     updateInvoice: (id: string, data: Partial<Invoice>) => void;
     recordPayment: (invoiceId: string, payment: Omit<Payment, 'id' | 'invoiceId'>) => void;
     recordInvoicePayment: (invoiceId: string) => void;

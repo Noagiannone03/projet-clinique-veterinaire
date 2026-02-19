@@ -48,11 +48,11 @@ export function Sidebar() {
             {/* Desktop Sidebar */}
             {showDesktop && (
                 <aside
-                    className={`fixed left-0 top-0 z-40 hidden h-screen flex-col border-r border-slate-200/80 bg-white/90 backdrop-blur-xl transition-all duration-300 md:flex ${isExpanded ? 'w-64' : 'w-[56px]'
+                    className={`fixed left-0 top-0 z-40 hidden h-screen flex-col border-r border-slate-200 bg-white transition-all duration-300 md:flex ${isExpanded ? 'w-64' : 'w-[56px]'
                         }`}
                 >
                     {/* Logo */}
-                    <div className={`border-b border-slate-200/70 ${isExpanded ? 'p-4' : 'p-2'}`}>
+                    <div className={`border-b border-slate-200 ${isExpanded ? 'p-4' : 'p-2'}`}>
                         <div className="flex items-center gap-3">
                             <div className={`${isExpanded ? 'h-16 w-44 rounded-xl border border-slate-200 bg-white p-1' : 'h-12 w-12 rounded-lg border border-slate-200 bg-white p-1'} overflow-hidden flex-shrink-0`}>
                                 <img
@@ -74,8 +74,8 @@ export function Sidebar() {
                                 className={({ isActive }) =>
                                     `flex items-center gap-3 rounded-xl transition-all ${isExpanded ? 'px-3 py-2.5' : 'justify-center px-2 py-2.5'
                                     } ${isActive
-                                        ? 'border border-primary-200 bg-gradient-to-r from-primary-50 to-secondary-50 text-primary-700 shadow-sm'
-                                        : 'border border-transparent text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-900'
+                                        ? 'border border-primary-200 bg-primary-50 text-primary-700 shadow-sm'
+                                        : 'border border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900'
                                     }`
                                 }
                                 title={isCollapsed ? item.label : undefined}
@@ -87,7 +87,7 @@ export function Sidebar() {
                     </nav>
 
                     {/* Footer */}
-                    <div className={`space-y-1 border-t border-slate-200/70 ${isExpanded ? 'p-4' : 'p-2'}`}>
+                    <div className={`space-y-1 border-t border-slate-200 ${isExpanded ? 'p-4' : 'p-2'}`}>
                         {isExpanded && user && (
                             <div className="mb-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
                                 <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
@@ -96,7 +96,7 @@ export function Sidebar() {
                         )}
                         <NavLink
                             to="/settings"
-                            className={`flex items-center gap-3 rounded-xl border border-transparent text-slate-600 transition-all hover:border-slate-200 hover:bg-white hover:text-slate-900 ${isExpanded ? 'px-3 py-2.5' : 'justify-center px-2 py-2.5'
+                            className={`flex items-center gap-3 rounded-xl border border-transparent text-slate-600 transition-all hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 ${isExpanded ? 'px-3 py-2.5' : 'justify-center px-2 py-2.5'
                                 }`}
                             title={isCollapsed ? 'Parametres' : undefined}
                         >
@@ -116,7 +116,7 @@ export function Sidebar() {
                         {/* Collapse toggle */}
                         <button
                             onClick={toggle}
-                            className={`mt-2 flex w-full items-center gap-3 rounded-xl border border-transparent text-slate-400 transition-all hover:border-slate-200 hover:bg-white hover:text-slate-600 ${isExpanded ? 'px-3 py-2' : 'justify-center px-2 py-2'
+                            className={`mt-2 flex w-full items-center gap-3 rounded-xl border border-transparent text-slate-400 transition-all hover:border-slate-200 hover:bg-slate-50 hover:text-slate-600 ${isExpanded ? 'px-3 py-2' : 'justify-center px-2 py-2'
                                 }`}
                         >
                             {isExpanded ? (
@@ -161,7 +161,7 @@ export function Sidebar() {
                                     onClick={closeMobile}
                                     className={({ isActive }) =>
                                         `flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all ${isActive
-                                            ? 'border-primary-200 bg-gradient-to-r from-primary-50 to-secondary-50 text-primary-700'
+                                            ? 'border-primary-200 bg-primary-50 text-primary-700'
                                             : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900'
                                         }`
                                     }
