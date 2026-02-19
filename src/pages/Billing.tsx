@@ -1,9 +1,21 @@
 import { useMemo, useState } from 'react';
 import { Header } from '../components/layout';
-import { Button, Badge, SearchInput } from '../components/ui';
+import { Button, SearchInput } from '../components/ui';
 import { useToast } from '../components/ui/Toast';
 import { InvoiceForm, PaymentForm } from '../components/forms';
-import { Search, Plus, FileText, CreditCard, Clock, CheckCircle, AlertTriangle, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
+import {
+    Plus,
+    FileText,
+    CreditCard,
+    Clock,
+    CheckCircle,
+    AlertTriangle,
+    ChevronDown,
+    ChevronUp,
+    Receipt,
+    TrendingUp,
+    X,
+} from 'lucide-react';
 import type { Invoice } from '../types';
 import type { InvoiceFormData, PaymentFormData } from '../schemas';
 import { format } from 'date-fns';
@@ -11,18 +23,50 @@ import { fr } from 'date-fns/locale';
 import { useClinicData } from '../context/clinicState';
 import { useAuth } from '../context/AuthContext';
 
-const statusConfig: Record<Invoice['status'], { label: string; variant: 'success' | 'warning' | 'danger' | 'info' }> = {
-    paid: { label: 'Paye', variant: 'success' },
-    pending: { label: 'En attente', variant: 'warning' },
-    overdue: { label: 'En retard', variant: 'danger' },
-    partial: { label: 'Partiel', variant: 'info' },
+type StatusFilter = 'all' | 'pending' | 'overdue' | 'partial' | 'paid';
+
+const statusConfig: Record<Invoice['status'], {
+    label: string;
+    bg: string;
+    text: string;
+    ring: string;
+    dot: string;
+}> = {
+    paid: {
+        label: 'Payée',
+        bg: 'bg-emerald-50',
+        text: 'text-emerald-700',
+        ring: 'ring-emerald-200',
+        dot: 'bg-emerald-500',
+    },
+    pending: {
+        label: 'En attente',
+        bg: 'bg-amber-50',
+        text: 'text-amber-700',
+        ring: 'ring-amber-200',
+        dot: 'bg-amber-500',
+    },
+    overdue: {
+        label: 'En retard',
+        bg: 'bg-rose-50',
+        text: 'text-rose-700',
+        ring: 'ring-rose-200',
+        dot: 'bg-rose-500',
+    },
+    partial: {
+        label: 'Partielle',
+        bg: 'bg-sky-50',
+        text: 'text-sky-700',
+        ring: 'ring-sky-200',
+        dot: 'bg-sky-500',
+    },
 };
 
-const statusIcon: Record<Invoice['status'], typeof CheckCircle> = {
-    paid: CheckCircle,
-    pending: Clock,
-    overdue: AlertTriangle,
-    partial: CreditCard,
+const paymentMethodLabel: Record<string, string> = {
+    card: 'Carte',
+    cash: 'Espèces',
+    check: 'Chèque',
+    transfer: 'Virement',
 };
 
 interface InvoiceRowProps {
@@ -37,170 +81,255 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
 
     const amountPaid = useMemo(() => {
         if (!invoice.paymentPlan) {
-            return invoice.status === 'paid' ? invoice.total : invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+            return invoice.status === 'paid'
+                ? invoice.total
+                : invoice.payments.reduce((sum, p) => sum + p.amount, 0);
         }
-        return Math.min(invoice.paymentPlan.paidInstallments * invoice.paymentPlan.installmentAmount, invoice.total);
+        return Math.min(
+            invoice.paymentPlan.paidInstallments * invoice.paymentPlan.installmentAmount,
+            invoice.total
+        );
     }, [invoice]);
 
     const amountRemaining = Math.max(invoice.total - amountPaid, 0);
-    const StatusIcon = statusIcon[invoice.status];
+    const progressPct = invoice.total > 0 ? Math.round((amountPaid / invoice.total) * 100) : 0;
 
     return (
         <>
             <tr
-                className="border-b border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer"
+                className={`border-b border-slate-100 hover:bg-slate-50/60 transition-colors cursor-pointer ${expanded ? 'bg-slate-50/40' : ''}`}
                 onClick={() => setExpanded(!expanded)}
             >
-                <td className="py-4 px-4">
+                {/* N° facture */}
+                <td className="py-4 px-5">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
-                            <FileText className="w-5 h-5 text-primary-600" />
+                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 ${config.bg} ring-1 ${config.ring}`}>
+                            <FileText className={`h-4 w-4 ${config.text}`} />
                         </div>
                         <div>
-                            <p className="font-medium text-slate-900 font-mono">{invoice.invoiceNumber}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="font-bold text-slate-900 font-mono text-sm">{invoice.invoiceNumber}</p>
+                            <p className="text-[11px] text-slate-400">
                                 {format(new Date(invoice.date), 'dd MMM yyyy', { locale: fr })}
                             </p>
                         </div>
                     </div>
                 </td>
-                <td className="py-4 px-4">
-                    <p className="font-medium text-slate-900">{invoice.ownerName}</p>
-                    <p className="text-sm text-slate-500">{invoice.patientName}</p>
+
+                {/* Client */}
+                <td className="py-4 px-5">
+                    <p className="font-semibold text-slate-900">{invoice.ownerName}</p>
+                    <p className="text-xs text-slate-400">{invoice.patientName}</p>
                 </td>
-                <td className="py-4 px-4">
-                    <div className="flex items-center gap-2">
-                        <StatusIcon className={`w-4 h-4 ${config.variant === 'success' ? 'text-emerald-500' : config.variant === 'danger' ? 'text-rose-500' : config.variant === 'warning' ? 'text-amber-500' : 'text-sky-500'}`} />
-                        <Badge variant={config.variant}>{config.label}</Badge>
-                    </div>
-                </td>
-                <td className="py-4 px-4">
-                    <span className="font-bold text-slate-900">{invoice.total.toFixed(2)} EUR</span>
-                </td>
-                <td className="py-4 px-4">
-                    {invoice.paymentPlan ? (
-                        <div className="text-sm">
-                            <p className="text-slate-900">
-                                {invoice.paymentPlan.paidInstallments}/{invoice.paymentPlan.totalInstallments} echeances
-                            </p>
-                            <div className="w-24 h-2 bg-slate-200 rounded-full mt-1">
-                                <div
-                                    className="h-2 bg-primary-500 rounded-full transition-all"
-                                    style={{
-                                        width: `${(invoice.paymentPlan.paidInstallments / invoice.paymentPlan.totalInstallments) * 100}%`,
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    ) : (
-                        <span className="text-slate-400">-</span>
+
+                {/* Montant */}
+                <td className="py-4 px-5">
+                    <p className="font-bold text-slate-900 text-base">{invoice.total.toFixed(2)} €</p>
+                    {invoice.status !== 'paid' && amountRemaining > 0 && (
+                        <p className="text-[11px] text-rose-500 font-medium">
+                            {amountRemaining.toFixed(2)} € restant
+                        </p>
                     )}
                 </td>
-                <td className="py-4 px-4">
+
+                {/* Statut */}
+                <td className="py-4 px-5">
                     <div className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full flex-shrink-0 ${config.dot}`} />
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${config.bg} ${config.text} ring-1 ${config.ring}`}>
+                            {config.label}
+                        </span>
+                    </div>
+                    {/* Progress bar */}
+                    {invoice.status !== 'paid' && invoice.total > 0 && (
+                        <div className="mt-1.5 h-1.5 w-24 rounded-full bg-slate-200 overflow-hidden">
+                            <div
+                                className="h-full rounded-full bg-teal-500 transition-all"
+                                style={{ width: `${progressPct}%` }}
+                            />
+                        </div>
+                    )}
+                </td>
+
+                {/* Échéancier */}
+                <td className="py-4 px-5">
+                    {invoice.paymentPlan ? (
+                        <div>
+                            <p className="text-sm font-semibold text-slate-800">
+                                {invoice.paymentPlan.paidInstallments}/{invoice.paymentPlan.totalInstallments}
+                                <span className="font-normal text-slate-500"> échéances</span>
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                                {invoice.paymentPlan.installmentAmount.toFixed(2)} €/éch.
+                            </p>
+                        </div>
+                    ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                    )}
+                </td>
+
+                {/* Actions */}
+                <td className="py-4 px-5">
+                    <div className="flex items-center justify-end gap-2">
                         {invoice.status !== 'paid' && canManage && (
-                            <Button
-                                size="sm"
+                            <button
+                                type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onRecordPayment(invoice);
                                 }}
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-teal-700"
                             >
+                                <CreditCard className="h-3.5 w-3.5" />
                                 Encaisser
-                            </Button>
+                            </button>
                         )}
-                        {expanded ? (
-                            <ChevronUp className="w-5 h-5 text-slate-400" />
-                        ) : (
-                            <ChevronDown className="w-5 h-5 text-slate-400" />
-                        )}
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setExpanded(!expanded);
+                            }}
+                            className="rounded-xl p-1.5 hover:bg-slate-100 transition"
+                        >
+                            {expanded
+                                ? <ChevronUp className="h-4 w-4 text-slate-400" />
+                                : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                        </button>
                     </div>
                 </td>
             </tr>
-            {expanded && (
-                <tr className="bg-slate-50">
-                    <td colSpan={6} className="p-4">
-                        <div className="bg-white rounded-lg p-4 border border-slate-200">
-                            <h4 className="font-semibold text-slate-900 mb-3">Detail de la facture</h4>
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="text-left text-sm text-slate-500">
-                                        <th className="pb-2">Description</th>
-                                        <th className="pb-2">Qte</th>
-                                        <th className="pb-2">Prix unit.</th>
-                                        <th className="pb-2 text-right">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {invoice.lines.map((line) => (
-                                        <tr key={line.id} className="border-t border-slate-100">
-                                            <td className="py-2 text-slate-900">{line.description}</td>
-                                            <td className="py-2 text-slate-600">{line.quantity}</td>
-                                            <td className="py-2 text-slate-600">{line.unitPrice.toFixed(2)} EUR</td>
-                                            <td className="py-2 text-right font-medium text-slate-900">
-                                                {line.total.toFixed(2)} EUR
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
 
-                            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200">
-                                    <p className="text-xs text-emerald-600">Montant encaisse</p>
-                                    <p className="font-semibold text-emerald-700">{amountPaid.toFixed(2)} EUR</p>
+            {/* Expanded detail */}
+            {expanded && (
+                <tr>
+                    <td colSpan={6} className="bg-slate-50 px-5 pb-5 pt-0">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5 mt-2">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="font-bold text-slate-900">
+                                    Détail — {invoice.invoiceNumber}
+                                </h4>
+                                <button
+                                    type="button"
+                                    onClick={() => setExpanded(false)}
+                                    className="rounded-lg p-1 hover:bg-slate-100 transition"
+                                >
+                                    <X className="h-4 w-4 text-slate-400" />
+                                </button>
+                            </div>
+
+                            {/* Lines */}
+                            <div className="rounded-xl border border-slate-100 overflow-hidden mb-4">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-slate-50 border-b border-slate-100">
+                                            <th className="px-4 py-2.5 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Prestation</th>
+                                            <th className="px-4 py-2.5 text-center text-xs font-bold uppercase tracking-wider text-slate-400">Qté</th>
+                                            <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">P.U.</th>
+                                            <th className="px-4 py-2.5 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {invoice.lines.map((line) => (
+                                            <tr key={line.id}>
+                                                <td className="px-4 py-2.5 font-medium text-slate-800">{line.description}</td>
+                                                <td className="px-4 py-2.5 text-center text-slate-600">{line.quantity}</td>
+                                                <td className="px-4 py-2.5 text-right text-slate-600">{line.unitPrice.toFixed(2)} €</td>
+                                                <td className="px-4 py-2.5 text-right font-bold text-slate-900">{line.total.toFixed(2)} €</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="border-t-2 border-slate-200 bg-slate-50">
+                                            <td colSpan={3} className="px-4 py-2.5 text-right text-sm font-bold text-slate-700">Total TTC</td>
+                                            <td className="px-4 py-2.5 text-right font-bold text-lg text-slate-900">{invoice.total.toFixed(2)} €</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            {/* Payment summary */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <CheckCircle className="h-4 w-4 text-emerald-600" />
+                                        <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Encaissé</p>
+                                    </div>
+                                    <p className="text-xl font-bold text-emerald-800">{amountPaid.toFixed(2)} €</p>
                                 </div>
-                                <div className="p-3 rounded-lg bg-amber-50 border border-amber-200">
-                                    <p className="text-xs text-amber-600">Reste a encaisser</p>
-                                    <p className="font-semibold text-amber-700">{amountRemaining.toFixed(2)} EUR</p>
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Clock className="h-4 w-4 text-amber-600" />
+                                        <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Restant</p>
+                                    </div>
+                                    <p className="text-xl font-bold text-amber-800">{amountRemaining.toFixed(2)} €</p>
                                 </div>
-                                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                                    <p className="text-xs text-slate-500">Date d'echeance</p>
-                                    <p className="font-semibold text-slate-900">
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <FileText className="h-4 w-4 text-slate-500" />
+                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Échéance</p>
+                                    </div>
+                                    <p className="text-base font-bold text-slate-800">
                                         {format(new Date(invoice.dueDate), 'dd MMM yyyy', { locale: fr })}
                                     </p>
                                 </div>
                             </div>
 
+                            {/* Payment plan */}
                             {invoice.paymentPlan && (
-                                <div className="mt-4 p-3 bg-sky-50 rounded-lg border border-sky-200">
-                                    <p className="text-sm font-medium text-sky-900 mb-2">Plan de paiement</p>
+                                <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 mb-4">
+                                    <p className="text-sm font-bold text-sky-900 mb-3 flex items-center gap-2">
+                                        <TrendingUp className="h-4 w-4" /> Plan de paiement
+                                    </p>
                                     <div className="grid grid-cols-3 gap-4 text-sm">
                                         <div>
-                                            <p className="text-sky-600">Echeances</p>
-                                            <p className="font-medium text-sky-900">
+                                            <p className="text-[11px] font-semibold text-sky-600 uppercase mb-1">Échéances</p>
+                                            <p className="font-bold text-sky-900">
                                                 {invoice.paymentPlan.paidInstallments} / {invoice.paymentPlan.totalInstallments}
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-sky-600">Montant/echeance</p>
-                                            <p className="font-medium text-sky-900">
-                                                {invoice.paymentPlan.installmentAmount.toFixed(2)} EUR
-                                            </p>
+                                            <p className="text-[11px] font-semibold text-sky-600 uppercase mb-1">Montant/éch.</p>
+                                            <p className="font-bold text-sky-900">{invoice.paymentPlan.installmentAmount.toFixed(2)} €</p>
                                         </div>
                                         <div>
-                                            <p className="text-sky-600">Prochain paiement</p>
-                                            <p className="font-medium text-sky-900">
-                                                {format(new Date(invoice.paymentPlan.nextPaymentDate), 'dd MMM yyyy', { locale: fr })}
+                                            <p className="text-[11px] font-semibold text-sky-600 uppercase mb-1">Prochain</p>
+                                            <p className="font-bold text-sky-900">
+                                                {format(new Date(invoice.paymentPlan.nextPaymentDate), 'dd MMM', { locale: fr })}
                                             </p>
                                         </div>
+                                    </div>
+                                    <div className="mt-3 h-2 rounded-full bg-sky-200 overflow-hidden">
+                                        <div
+                                            className="h-full rounded-full bg-sky-500 transition-all"
+                                            style={{
+                                                width: `${(invoice.paymentPlan.paidInstallments / invoice.paymentPlan.totalInstallments) * 100}%`,
+                                            }}
+                                        />
                                     </div>
                                 </div>
                             )}
 
+                            {/* Payment history */}
                             {invoice.payments.length > 0 && (
-                                <div className="mt-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                                    <p className="text-sm font-medium text-slate-700 mb-2">Historique paiements</p>
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-sm font-bold text-slate-700 mb-3">Historique des paiements</p>
                                     <div className="space-y-2">
                                         {invoice.payments.map((p) => (
-                                            <div key={p.id} className="flex items-center justify-between text-sm">
-                                                <div className="flex items-center gap-2">
-                                                    <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                                                    <span className="text-slate-600">
-                                                        {format(new Date(p.date), 'dd/MM/yyyy')} - {p.method === 'card' ? 'Carte' : p.method === 'cash' ? 'Especes' : p.method === 'check' ? 'Cheque' : 'Virement'}
-                                                    </span>
+                                            <div key={p.id} className="flex items-center justify-between rounded-lg bg-white border border-slate-100 px-3 py-2">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="h-7 w-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                                                        <CreditCard className="h-3.5 w-3.5 text-emerald-600" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-semibold text-slate-800">
+                                                            {paymentMethodLabel[p.method] ?? p.method}
+                                                        </p>
+                                                        <p className="text-[11px] text-slate-400">
+                                                            {format(new Date(p.date), 'dd/MM/yyyy')}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                                <span className="font-medium text-emerald-700">{p.amount.toFixed(2)} EUR</span>
+                                                <span className="font-bold text-emerald-700">+{p.amount.toFixed(2)} €</span>
                                             </div>
                                         ))}
                                     </div>
@@ -220,33 +349,45 @@ export function Billing() {
     const toast = useToast();
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [showNewInvoice, setShowNewInvoice] = useState(false);
     const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
 
     const canManage = role === 'assistant' || role === 'veterinarian';
 
-    const filteredInvoices = useMemo(() => invoices.filter((inv) => {
-        const q = searchQuery.toLowerCase();
-        const matchesSearch = !q ||
-            inv.invoiceNumber.toLowerCase().includes(q) ||
-            inv.ownerName.toLowerCase().includes(q) ||
-            inv.patientName.toLowerCase().includes(q);
-        const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
-        return matchesSearch && matchesStatus;
-    }), [invoices, searchQuery, statusFilter]);
+    const filteredInvoices = useMemo(
+        () =>
+            invoices.filter((inv) => {
+                const q = searchQuery.toLowerCase();
+                const matchesSearch =
+                    !q ||
+                    inv.invoiceNumber.toLowerCase().includes(q) ||
+                    inv.ownerName.toLowerCase().includes(q) ||
+                    inv.patientName.toLowerCase().includes(q);
+                const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
+                return matchesSearch && matchesStatus;
+            }),
+        [invoices, searchQuery, statusFilter]
+    );
 
     const stats = useMemo(() => {
         const total = invoices.reduce((sum, inv) => sum + inv.total, 0);
         const paid = invoices.filter((i) => i.status === 'paid').reduce((sum, inv) => sum + inv.total, 0);
         const pending = invoices.filter((i) => i.status === 'pending' || i.status === 'partial').length;
         const overdue = invoices.filter((i) => i.status === 'overdue').length;
-        return { total, paid, pending, overdue };
+        const encaissementRate = total > 0 ? Math.round((paid / total) * 100) : 0;
+        return { total, paid, pending, overdue, encaissementRate };
     }, [invoices]);
 
+    const countByStatus = useMemo(() => ({
+        all: invoices.length,
+        paid: invoices.filter((i) => i.status === 'paid').length,
+        pending: invoices.filter((i) => i.status === 'pending').length,
+        overdue: invoices.filter((i) => i.status === 'overdue').length,
+        partial: invoices.filter((i) => i.status === 'partial').length,
+    }), [invoices]);
+
     const handleNewInvoice = (data: InvoiceFormData) => {
-        const patient = invoices.length > 0 ? undefined : undefined; // just for type safety
-        void patient;
         addInvoice({
             patientId: data.patientId,
             patientName: '',
@@ -255,7 +396,7 @@ export function Billing() {
             dueDate: data.dueDate,
             lines: data.lines,
         });
-        toast.success('Facture creee avec succes');
+        toast.success('Facture créée avec succès');
     };
 
     const handlePayment = (data: PaymentFormData) => {
@@ -265,7 +406,7 @@ export function Billing() {
             method: data.method,
             date: data.date,
         });
-        toast.success('Paiement enregistre');
+        toast.success('Paiement enregistré');
         setPayingInvoice(null);
     };
 
@@ -279,114 +420,197 @@ export function Billing() {
         <div>
             <Header title="Facturation" subtitle={`${invoices.length} factures`} />
 
-            <div className="p-4 sm:p-8 space-y-6">
-                {/* Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                        <div className="flex items-center gap-2 text-slate-500 mb-1">
-                            <Receipt className="w-4 h-4" />
-                            <span className="text-xs font-medium">Total facture</span>
+            <div className="p-4 sm:p-6 space-y-5">
+
+                {/* ── Stats ── */}
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {/* CA Total */}
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 col-span-2 lg:col-span-1">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="rounded-xl bg-slate-100 p-2">
+                                <Receipt className="h-4 w-4 text-slate-600" />
+                            </div>
+                            <span className="text-xs font-bold uppercase tracking-wide text-slate-400">CA Facturé</span>
                         </div>
-                        <p className="text-2xl font-bold text-slate-900">{stats.total.toFixed(2)} EUR</p>
+                        <p className="text-2xl font-bold text-slate-900">{stats.total.toFixed(0)} €</p>
+                        <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                                className="h-full rounded-full bg-teal-500"
+                                style={{ width: `${stats.encaissementRate}%` }}
+                            />
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-400">
+                            {stats.encaissementRate}% encaissé
+                        </p>
                     </div>
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                        <div className="flex items-center gap-2 text-emerald-600 mb-1">
-                            <CheckCircle className="w-4 h-4" />
-                            <span className="text-xs font-medium">Encaisse</span>
+
+                    {/* CA Encaissé */}
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="rounded-xl bg-emerald-100 p-2">
+                                <CheckCircle className="h-4 w-4 text-emerald-600" />
+                            </div>
+                            <span className="text-xs font-bold uppercase tracking-wide text-emerald-600">Encaissé</span>
                         </div>
-                        <p className="text-2xl font-bold text-emerald-700">{stats.paid.toFixed(2)} EUR</p>
+                        <p className="text-2xl font-bold text-emerald-800">{stats.paid.toFixed(0)} €</p>
+                        <p className="mt-1 text-[11px] text-emerald-600">
+                            {countByStatus.paid} facture{countByStatus.paid !== 1 ? 's' : ''} payée{countByStatus.paid !== 1 ? 's' : ''}
+                        </p>
                     </div>
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                        <div className="flex items-center gap-2 text-amber-600 mb-1">
-                            <Clock className="w-4 h-4" />
-                            <span className="text-xs font-medium">En attente</span>
+
+                    {/* En attente */}
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className="rounded-xl bg-amber-100 p-2">
+                                <Clock className="h-4 w-4 text-amber-600" />
+                            </div>
+                            <span className="text-xs font-bold uppercase tracking-wide text-amber-600">En attente</span>
                         </div>
-                        <p className="text-2xl font-bold text-amber-700">{stats.pending}</p>
+                        <p className="text-2xl font-bold text-amber-800">{stats.pending}</p>
+                        <p className="mt-1 text-[11px] text-amber-600">
+                            facture{stats.pending !== 1 ? 's' : ''} à encaisser
+                        </p>
                     </div>
-                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                        <div className="flex items-center gap-2 text-rose-600 mb-1">
-                            <AlertTriangle className="w-4 h-4" />
-                            <span className="text-xs font-medium">En retard</span>
+
+                    {/* En retard */}
+                    <div className={`rounded-2xl border p-4 ${stats.overdue > 0 ? 'border-rose-200 bg-rose-50' : 'border-slate-200 bg-white'}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                            <div className={`rounded-xl p-2 ${stats.overdue > 0 ? 'bg-rose-100' : 'bg-slate-100'}`}>
+                                <AlertTriangle className={`h-4 w-4 ${stats.overdue > 0 ? 'text-rose-600' : 'text-slate-400'}`} />
+                            </div>
+                            <span className={`text-xs font-bold uppercase tracking-wide ${stats.overdue > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                                En retard
+                            </span>
                         </div>
-                        <p className="text-2xl font-bold text-rose-700">{stats.overdue}</p>
+                        <p className={`text-2xl font-bold ${stats.overdue > 0 ? 'text-rose-800' : 'text-slate-700'}`}>
+                            {stats.overdue}
+                        </p>
+                        <p className={`mt-1 text-[11px] ${stats.overdue > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                            {stats.overdue > 0 ? 'à relancer en priorité' : 'aucun retard'}
+                        </p>
                     </div>
                 </div>
 
-                {/* Alert banner */}
+                {/* ── Alerte retards ── */}
                 {stats.overdue > 0 && (
-                    <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-rose-50 border border-amber-200">
-                        <div className="flex items-center gap-3">
-                            <AlertTriangle className="w-5 h-5 text-amber-600" />
-                            <div className="flex items-center gap-2">
-                                <Badge variant="danger">{stats.overdue}</Badge>
-                                <span className="text-sm text-rose-700 font-medium">facture(s) en retard de paiement</span>
-                            </div>
+                    <div className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50 to-amber-50 p-4">
+                        <div className="h-9 w-9 rounded-xl bg-rose-100 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle className="h-5 w-5 text-rose-600" />
                         </div>
+                        <div>
+                            <p className="font-bold text-rose-800 text-sm">
+                                {stats.overdue} facture{stats.overdue !== 1 ? 's' : ''} en retard de paiement
+                            </p>
+                            <p className="text-xs text-rose-600 mt-0.5">
+                                Utilisez le filtre «&nbsp;En retard&nbsp;» ci-dessous pour les retrouver rapidement.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setStatusFilter('overdue')}
+                            className="ml-auto flex-shrink-0 rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition"
+                        >
+                            Voir les retards
+                        </button>
                     </div>
                 )}
 
-                {/* Filters + Actions */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <SearchInput
-                            value={searchQuery}
-                            onChange={setSearchQuery}
-                            placeholder="Rechercher une facture..."
-                            className="w-full sm:w-80"
-                        />
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-sm text-slate-700"
-                        >
-                            <option value="all">Tous statuts</option>
-                            <option value="paid">Payees</option>
-                            <option value="pending">En attente</option>
-                            <option value="partial">Partielles</option>
-                            <option value="overdue">En retard</option>
-                        </select>
-                    </div>
-                    {canManage && (
-                        <Button
-                            icon={<Plus className="w-4 h-4" />}
-                            onClick={() => setShowNewInvoice(true)}
-                        >
-                            Nouvelle facture
-                        </Button>
-                    )}
-                </div>
+                {/* ── Toolbar : tabs + search + new ── */}
+                <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                    <div className="border-b border-slate-100 p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
-                {/* Table */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="text-left py-3 px-4 font-medium text-slate-600">Facture</th>
-                                    <th className="text-left py-3 px-4 font-medium text-slate-600">Client</th>
-                                    <th className="text-left py-3 px-4 font-medium text-slate-600">Statut</th>
-                                    <th className="text-left py-3 px-4 font-medium text-slate-600">Montant</th>
-                                    <th className="text-left py-3 px-4 font-medium text-slate-600">Echeancier</th>
-                                    <th className="text-left py-3 px-4 font-medium text-slate-600">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredInvoices.map((invoice) => (
-                                    <InvoiceRow
-                                        key={invoice.id}
-                                        invoice={invoice}
-                                        onRecordPayment={setPayingInvoice}
-                                        canManage={canManage}
-                                    />
-                                ))}
-                            </tbody>
-                        </table>
+                            {/* Status tabs */}
+                            <div className="flex flex-wrap gap-1.5">
+                                {(
+                                    [
+                                        { key: 'all', label: 'Toutes' },
+                                        { key: 'pending', label: 'En attente' },
+                                        { key: 'overdue', label: 'En retard' },
+                                        { key: 'partial', label: 'Partielles' },
+                                        { key: 'paid', label: 'Payées' },
+                                    ] as { key: StatusFilter; label: string }[]
+                                ).map(({ key, label }) => {
+                                    const count = countByStatus[key];
+                                    const isSelected = statusFilter === key;
+                                    const isRed = key === 'overdue' && count > 0;
+                                    return (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => setStatusFilter(key)}
+                                            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                                                isSelected
+                                                    ? isRed
+                                                        ? 'border-rose-300 bg-rose-50 text-rose-700'
+                                                        : 'border-teal-300 bg-teal-50 text-teal-700'
+                                                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            {label}
+                                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                                                isSelected
+                                                    ? isRed ? 'bg-rose-100 text-rose-700' : 'bg-teal-100 text-teal-700'
+                                                    : 'bg-slate-100 text-slate-500'
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Search + CTA */}
+                            <div className="flex items-center gap-2">
+                                <SearchInput
+                                    value={searchQuery}
+                                    onChange={setSearchQuery}
+                                    placeholder="Rechercher une facture..."
+                                    className="w-full sm:w-64"
+                                />
+                                {canManage && (
+                                    <Button icon={<Plus className="h-4 w-4" />} onClick={() => setShowNewInvoice(true)}>
+                                        <span className="hidden sm:inline">Nouvelle facture</span>
+                                        <span className="sm:hidden">Créer</span>
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                    {filteredInvoices.length === 0 && (
-                        <div className="text-center py-12">
-                            <FileText className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                            <p className="text-slate-500">Aucune facture trouvee</p>
-                            <p className="text-sm text-slate-400 mt-1">Modifiez vos filtres ou creez une nouvelle facture</p>
+
+                    {/* Table */}
+                    {filteredInvoices.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                                <FileText className="h-7 w-7 text-slate-300" />
+                            </div>
+                            <p className="font-semibold text-slate-600">Aucune facture trouvée</p>
+                            <p className="text-sm text-slate-400 mt-1">Modifiez vos filtres ou créez une nouvelle facture</p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-100 bg-slate-50/60">
+                                        <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Facture</th>
+                                        <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Client / Patient</th>
+                                        <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Montant</th>
+                                        <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Statut</th>
+                                        <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-400">Échéancier</th>
+                                        <th className="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-400">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredInvoices.map((invoice) => (
+                                        <InvoiceRow
+                                            key={invoice.id}
+                                            invoice={invoice}
+                                            onRecordPayment={setPayingInvoice}
+                                            canManage={canManage}
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>
