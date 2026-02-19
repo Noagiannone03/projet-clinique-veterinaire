@@ -144,6 +144,8 @@ export interface Invoice {
     patientId: string;
     patientName: string;
     ownerName: string;
+    source?: 'consultation' | 'counter_sale' | 'manual';
+    sourceAppointmentId?: string;
     date: string;
     dueDate: string;
     lines: InvoiceLine[];

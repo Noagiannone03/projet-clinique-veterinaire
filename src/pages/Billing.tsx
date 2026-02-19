@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Header } from '../components/layout';
-import { Button, SearchInput } from '../components/ui';
+import { SearchInput } from '../components/ui';
 import { useToast } from '../components/ui/Toast';
-import { InvoiceForm, PaymentForm } from '../components/forms';
+import { PaymentForm } from '../components/forms';
 import {
-    Plus,
     FileText,
     CreditCard,
     Clock,
@@ -17,7 +16,7 @@ import {
     X,
 } from 'lucide-react';
 import type { Invoice } from '../types';
-import type { InvoiceFormData, PaymentFormData } from '../schemas';
+import type { PaymentFormData } from '../schemas';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useClinicData } from '../context/clinicState';
@@ -71,6 +70,17 @@ const paymentMethodLabel: Record<string, string> = {
 
 function resolveLineType(line: Invoice['lines'][number]): 'service' | 'product' {
     return line.lineType === 'product' ? 'product' : 'service';
+}
+
+function getInvoicePaidAmount(invoice: Invoice): number {
+    const paidByPayments = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const paidByPlan = invoice.paymentPlan
+        ? invoice.paymentPlan.paidInstallments * invoice.paymentPlan.installmentAmount
+        : 0;
+    const legacyPaidFallback = invoice.status === 'paid' && paidByPayments === 0 && paidByPlan === 0
+        ? invoice.total
+        : 0;
+    return Math.min(Math.max(paidByPayments, paidByPlan, legacyPaidFallback), invoice.total);
 }
 
 interface InvoiceLinesTableProps {
@@ -130,18 +140,7 @@ interface InvoiceRowProps {
 function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
     const [expanded, setExpanded] = useState(false);
     const config = statusConfig[invoice.status];
-
-    const amountPaid = useMemo(() => {
-        if (!invoice.paymentPlan) {
-            return invoice.status === 'paid'
-                ? invoice.total
-                : invoice.payments.reduce((sum, p) => sum + p.amount, 0);
-        }
-        return Math.min(
-            invoice.paymentPlan.paidInstallments * invoice.paymentPlan.installmentAmount,
-            invoice.total
-        );
-    }, [invoice]);
+    const amountPaid = useMemo(() => getInvoicePaidAmount(invoice), [invoice]);
 
     const amountRemaining = Math.max(invoice.total - amountPaid, 0);
     const progressPct = invoice.total > 0 ? Math.round((amountPaid / invoice.total) * 100) : 0;
@@ -149,6 +148,11 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
     const productLines = invoice.lines.filter((line) => resolveLineType(line) === 'product');
     const servicesSubtotal = serviceLines.reduce((sum, line) => sum + line.total, 0);
     const productsSubtotal = productLines.reduce((sum, line) => sum + line.total, 0);
+    const sourceLabel = invoice.source === 'counter_sale'
+        ? 'Comptoir'
+        : invoice.source === 'consultation'
+            ? 'Consultation'
+            : 'Manuel';
 
     return (
         <>
@@ -164,9 +168,14 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
                         </div>
                         <div>
                             <p className="font-bold text-slate-900 font-mono text-sm">{invoice.invoiceNumber}</p>
-                            <p className="text-[11px] text-slate-400">
-                                {format(new Date(invoice.date), 'dd MMM yyyy', { locale: fr })}
-                            </p>
+                            <div className="flex items-center gap-2">
+                                <p className="text-[11px] text-slate-400">
+                                    {format(new Date(invoice.date), 'dd MMM yyyy', { locale: fr })}
+                                </p>
+                                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
+                                    {sourceLabel}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </td>
@@ -180,6 +189,9 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
                 {/* Montant */}
                 <td className="py-4 px-5">
                     <p className="font-bold text-slate-900 text-base">{invoice.total.toFixed(2)} €</p>
+                    <p className="text-[11px] text-emerald-600 font-medium">
+                        Encaissé: {amountPaid.toFixed(2)} €
+                    </p>
                     {invoice.status !== 'paid' && amountRemaining > 0 && (
                         <p className="text-[11px] text-rose-500 font-medium">
                             {amountRemaining.toFixed(2)} € restant
@@ -398,13 +410,12 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
 }
 
 export function Billing() {
-    const { invoices, patients, addInvoice, recordPayment } = useClinicData();
+    const { invoices, recordPayment } = useClinicData();
     const { role } = useAuth();
     const toast = useToast();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-    const [showNewInvoice, setShowNewInvoice] = useState(false);
     const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
 
     const canManage = role === 'assistant' || role === 'veterinarian';
@@ -426,10 +437,11 @@ export function Billing() {
 
     const stats = useMemo(() => {
         const total = invoices.reduce((sum, inv) => sum + inv.total, 0);
-        const paid = invoices.filter((i) => i.status === 'paid').reduce((sum, inv) => sum + inv.total, 0);
+        const collected = invoices.reduce((sum, inv) => sum + getInvoicePaidAmount(inv), 0);
+        const remaining = Math.max(total - collected, 0);
         const pending = invoices.filter((i) => i.status === 'pending' || i.status === 'partial').length;
         const overdue = invoices.filter((i) => i.status === 'overdue').length;
-        const encaissementRate = total > 0 ? Math.round((paid / total) * 100) : 0;
+        const encaissementRate = total > 0 ? Math.round((collected / total) * 100) : 0;
         const services = invoices.reduce(
             (sum, inv) => sum + inv.lines
                 .filter((line) => resolveLineType(line) === 'service')
@@ -442,7 +454,7 @@ export function Billing() {
                 .reduce((lineSum, line) => lineSum + line.total, 0),
             0
         );
-        return { total, paid, pending, overdue, encaissementRate, services, products };
+        return { total, collected, remaining, pending, overdue, encaissementRate, services, products };
     }, [invoices]);
 
     const countByStatus = useMemo(() => ({
@@ -453,23 +465,19 @@ export function Billing() {
         partial: invoices.filter((i) => i.status === 'partial').length,
     }), [invoices]);
 
-    const handleNewInvoice = (data: InvoiceFormData) => {
-        const patient = patients.find((p) => p.id === data.patientId);
-        addInvoice({
-            patientId: data.patientId,
-            patientName: patient?.name ?? '',
-            ownerName: patient ? `${patient.owner.firstName} ${patient.owner.lastName}` : '',
-            date: new Date().toISOString().split('T')[0],
-            dueDate: data.dueDate,
-            lines: data.lines,
-        });
-        toast.success('Facture créée avec succès');
-    };
-
     const handlePayment = (data: PaymentFormData) => {
         if (!payingInvoice) return;
+        const remaining = Math.max(payingInvoice.total - getInvoicePaidAmount(payingInvoice), 0);
+        const amount = Math.min(data.amount, remaining);
+        if (amount <= 0) {
+            toast.error('Aucun montant restant a encaisser');
+            return;
+        }
+        if (data.amount > remaining) {
+            toast.error(`Montant ajuste au restant (${remaining.toFixed(2)} EUR)`);
+        }
         recordPayment(payingInvoice.id, {
-            amount: data.amount,
+            amount,
             method: data.method,
             date: data.date,
         });
@@ -479,7 +487,7 @@ export function Billing() {
 
     const payingRemainingAmount = useMemo(() => {
         if (!payingInvoice) return 0;
-        const paid = payingInvoice.payments.reduce((sum, p) => sum + p.amount, 0);
+        const paid = getInvoicePaidAmount(payingInvoice);
         return Math.max(payingInvoice.total - paid, 0);
     }, [payingInvoice]);
 
@@ -523,7 +531,7 @@ export function Billing() {
                             </div>
                             <span className="text-xs font-bold uppercase tracking-wide text-emerald-600">Encaissé</span>
                         </div>
-                        <p className="text-2xl font-bold text-emerald-800">{stats.paid.toFixed(0)} €</p>
+                        <p className="text-2xl font-bold text-emerald-800">{stats.collected.toFixed(0)} €</p>
                         <p className="mt-1 text-[11px] text-emerald-600">
                             {countByStatus.paid} facture{countByStatus.paid !== 1 ? 's' : ''} payée{countByStatus.paid !== 1 ? 's' : ''}
                         </p>
@@ -535,9 +543,9 @@ export function Billing() {
                             <div className="rounded-xl bg-amber-100 p-2">
                                 <Clock className="h-4 w-4 text-amber-600" />
                             </div>
-                            <span className="text-xs font-bold uppercase tracking-wide text-amber-600">En attente</span>
+                            <span className="text-xs font-bold uppercase tracking-wide text-amber-600">Restant</span>
                         </div>
-                        <p className="text-2xl font-bold text-amber-800">{stats.pending}</p>
+                        <p className="text-2xl font-bold text-amber-800">{stats.remaining.toFixed(0)} €</p>
                         <p className="mt-1 text-[11px] text-amber-600">
                             facture{stats.pending !== 1 ? 's' : ''} à encaisser
                         </p>
@@ -586,7 +594,17 @@ export function Billing() {
                     </div>
                 )}
 
-                {/* ── Toolbar : tabs + search + new ── */}
+                <div className="rounded-2xl border border-primary-200 bg-primary-50 p-4">
+                    <p className="text-sm font-semibold text-primary-900">
+                        Facturation automatique active
+                    </p>
+                    <p className="mt-1 text-xs text-primary-700">
+                        Les factures de consultation sont créées automatiquement à la validation de l&apos;acte.
+                        Cette page sert au suivi et à l&apos;encaissement.
+                    </p>
+                </div>
+
+                {/* ── Toolbar : tabs + search ── */}
                 <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
                     <div className="border-b border-slate-100 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -631,7 +649,7 @@ export function Billing() {
                                 })}
                             </div>
 
-                            {/* Search + CTA */}
+                            {/* Search */}
                             <div className="flex items-center gap-2">
                                 <SearchInput
                                     value={searchQuery}
@@ -639,12 +657,6 @@ export function Billing() {
                                     placeholder="Rechercher une facture..."
                                     className="w-full sm:w-64"
                                 />
-                                {canManage && (
-                                    <Button icon={<Plus className="h-4 w-4" />} onClick={() => setShowNewInvoice(true)}>
-                                        <span className="hidden sm:inline">Nouvelle facture</span>
-                                        <span className="sm:hidden">Créer</span>
-                                    </Button>
-                                )}
                             </div>
                         </div>
                     </div>
@@ -656,7 +668,7 @@ export function Billing() {
                                 <FileText className="h-7 w-7 text-slate-300" />
                             </div>
                             <p className="font-semibold text-slate-600">Aucune facture trouvée</p>
-                            <p className="text-sm text-slate-400 mt-1">Modifiez vos filtres ou créez une nouvelle facture</p>
+                            <p className="text-sm text-slate-400 mt-1">Modifiez vos filtres ou terminez une consultation pour générer une facture.</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
@@ -686,12 +698,6 @@ export function Billing() {
                     )}
                 </div>
             </div>
-
-            <InvoiceForm
-                isOpen={showNewInvoice}
-                onClose={() => setShowNewInvoice(false)}
-                onSubmit={handleNewInvoice}
-            />
 
             {payingInvoice && (
                 <PaymentForm

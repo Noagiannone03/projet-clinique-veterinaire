@@ -9,20 +9,19 @@ import type { DateSelectArg, EventApi, EventClickArg, EventContentArg, EventDrop
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
-    Plus, X, Receipt, UserCheck, Stethoscope, CheckCircle,
+    Plus, X, UserCheck, Stethoscope, CheckCircle,
     ChevronLeft, ChevronRight, Lock, Unlock, ArrowRight,
     Calendar as CalendarIcon,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { AppointmentForm, InvoiceForm } from '../components/forms';
+import { Link, useNavigate } from 'react-router-dom';
+import { AppointmentForm } from '../components/forms';
 import { Button, SearchInput } from '../components/ui';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useToast } from '../components/ui/Toast';
 import { useClinicData } from '../context/clinicState';
 import { useAuth } from '../context/AuthContext';
 import type { Appointment } from '../types';
-import type { InvoiceFormData } from '../schemas';
 
 type CalendarView = 'timeGridDay' | 'timeGridWeek' | 'dayGridMonth';
 
@@ -63,6 +62,14 @@ const appointmentBillingLabel: Record<Appointment['type'], string> = {
     surgery: 'Intervention chirurgicale',
     'follow-up': 'Consultation de suivi',
     emergency: 'Prise en charge urgence',
+};
+
+const appointmentDefaultPrice: Record<Appointment['type'], number> = {
+    consultation: 45,
+    vaccination: 75,
+    surgery: 180,
+    'follow-up': 35,
+    emergency: 95,
 };
 
 const speciesEmoji: Record<Appointment['species'], string> = {
@@ -110,6 +117,7 @@ export function Appointments() {
         addAppointment, updateAppointmentStatus, updateAppointmentSchedule,
         updateAppointment, cancelAppointment, addInvoice,
     } = useClinicData();
+    const navigate = useNavigate();
     const { role, user } = useAuth();
     const toast = useToast();
     const calendarRef = useRef<FullCalendar>(null);
@@ -145,9 +153,6 @@ export function Appointments() {
         id: string; date: string; time: string; duration: number;
         revert: () => void; description: string;
     } | null>(null);
-    const [showInvoiceForm, setShowInvoiceForm] = useState(false);
-    const [invoicePatientId, setInvoicePatientId] = useState<string | undefined>(undefined);
-    const [invoiceDefaultLines, setInvoiceDefaultLines] = useState<InvoiceFormData['lines'] | undefined>(undefined);
 
     /* ── Derived ── */
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -220,19 +225,24 @@ export function Appointments() {
         [patients, selectedAppt]
     );
 
-    const buildDefaultInvoiceLines = (appointment: Appointment): InvoiceFormData['lines'] => ([
-        {
-            lineType: 'service',
-            description: appointmentBillingLabel[appointment.type],
-            quantity: 1,
-            unitPrice: 0,
-        },
-    ]);
-
-    const openInvoiceForAppointment = (appointment: Appointment) => {
-        setInvoicePatientId(appointment.patientId);
-        setInvoiceDefaultLines(buildDefaultInvoiceLines(appointment));
-        setShowInvoiceForm(true);
+    const createAutoInvoiceFromAppointment = (appointment: Appointment) => {
+        const patient = patients.find((p) => p.id === appointment.patientId);
+        if (!patient) return null;
+        return addInvoice({
+            patientId: appointment.patientId,
+            patientName: patient.name,
+            ownerName: `${patient.owner.firstName} ${patient.owner.lastName}`,
+            source: 'consultation',
+            sourceAppointmentId: appointment.id,
+            date: appointment.date,
+            dueDate: appointment.date,
+            lines: [{
+                lineType: 'service',
+                description: appointmentBillingLabel[appointment.type],
+                quantity: 1,
+                unitPrice: appointmentDefaultPrice[appointment.type],
+            }],
+        });
     };
 
     /* ── Actions ── */
@@ -243,9 +253,22 @@ export function Appointments() {
         if (apt.status === 'arrived')
             a.push({ label: 'Démarrer la consultation', icon: Stethoscope, variant: 'primary', onClick: () => { updateAppointmentStatus(apt.id, 'in-progress'); toast.success('Consultation démarrée'); } });
         if (apt.status === 'in-progress')
-            a.push({ label: 'Terminer', icon: CheckCircle, variant: 'success', onClick: () => { updateAppointmentStatus(apt.id, 'completed'); toast.success('Consultation terminée'); } });
+            a.push({
+                label: 'Terminer',
+                icon: CheckCircle,
+                variant: 'success',
+                onClick: () => {
+                    updateAppointmentStatus(apt.id, 'completed');
+                    const invoice = createAutoInvoiceFromAppointment(apt);
+                    if (invoice) {
+                        toast.success(`Consultation terminee · facture ${invoice.invoiceNumber} generee`);
+                    } else {
+                        toast.success('Consultation terminee');
+                    }
+                },
+            });
         if (apt.status === 'completed')
-            a.push({ label: 'Créer la facture', icon: Receipt, variant: 'primary', onClick: () => openInvoiceForAppointment(apt) });
+            a.push({ label: 'Facturation', icon: ArrowRight, variant: 'primary', onClick: () => navigate('/billing') });
         return a;
     };
 
@@ -678,24 +701,6 @@ export function Appointments() {
                 variant="warning"
             />
 
-            <InvoiceForm
-                isOpen={showInvoiceForm}
-                onClose={() => {
-                    setShowInvoiceForm(false);
-                    setInvoiceDefaultLines(undefined);
-                    setInvoicePatientId(undefined);
-                }}
-                onSubmit={(data) => {
-                    const p = patients.find((pt) => pt.id === data.patientId);
-                    addInvoice({ patientId: data.patientId, date: new Date().toISOString().split('T')[0], dueDate: data.dueDate, lines: data.lines, patientName: p?.name ?? '', ownerName: p ? `${p.owner.firstName} ${p.owner.lastName}` : '' });
-                    toast.success('Facture créée');
-                    setShowInvoiceForm(false);
-                    setInvoiceDefaultLines(undefined);
-                    setInvoicePatientId(undefined);
-                }}
-                defaultPatientId={invoicePatientId}
-                defaultLines={invoiceDefaultLines}
-            />
         </div>
     );
 }

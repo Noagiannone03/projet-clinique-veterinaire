@@ -19,14 +19,49 @@ import { patients as initialPatients } from '../data/patients';
 import { ClinicStateContext, type NewAppointmentInput } from './clinicState';
 import { storage } from '../services/storage';
 
+function getInvoicePaidAmount(invoice: Pick<Invoice, 'total' | 'status' | 'payments' | 'paymentPlan'>): number {
+    const paidByPayments = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const paidByPlan = invoice.paymentPlan
+        ? invoice.paymentPlan.paidInstallments * invoice.paymentPlan.installmentAmount
+        : 0;
+    const legacyPaidFallback = invoice.status === 'paid' && paidByPayments === 0 && paidByPlan === 0
+        ? invoice.total
+        : 0;
+    return Math.min(Math.max(paidByPayments, paidByPlan, legacyPaidFallback), invoice.total);
+}
+
+function computeInvoiceStatus(
+    invoice: Pick<Invoice, 'total' | 'dueDate'>,
+    amountPaid: number
+): Invoice['status'] {
+    if (amountPaid >= invoice.total) return 'paid';
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(`${invoice.dueDate}T00:00:00`);
+    if (!Number.isNaN(dueDate.getTime()) && dueDate < today) {
+        return 'overdue';
+    }
+
+    if (amountPaid > 0) return 'partial';
+    return 'pending';
+}
+
 function normalizeInvoice(invoice: Invoice): Invoice {
-    return {
+    const lines = invoice.lines.map((line) => ({
+        ...line,
+        lineType: line.lineType ?? (line.productId ? 'product' : 'service'),
+    }));
+    const baseInvoice: Invoice = {
         ...invoice,
+        source: invoice.source ?? (invoice.sourceAppointmentId ? 'consultation' : 'manual'),
         payments: invoice.payments || [],
-        lines: invoice.lines.map((line) => ({
-            ...line,
-            lineType: line.lineType ?? (line.productId ? 'product' : 'service'),
-        })),
+        lines,
+    };
+    const amountPaid = getInvoicePaidAmount(baseInvoice);
+    return {
+        ...baseInvoice,
+        status: computeInvoiceStatus(baseInvoice, amountPaid),
     };
 }
 
@@ -288,6 +323,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             lines: InvoiceLineInput[];
         }
     ): Invoice => {
+        if (data.sourceAppointmentId) {
+            const existing = invoices.find((invoice) => invoice.sourceAppointmentId === data.sourceAppointmentId);
+            if (existing) return existing;
+        }
+
         const lines = data.lines.map((l) => ({
             id: generateId('line'),
             description: l.description,
@@ -310,43 +350,53 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             subtotal,
             tax,
             total,
+            source: data.source ?? 'manual',
             status: 'pending',
             payments: [],
         };
+        const normalizedInvoice = normalizeInvoice(newInvoice);
 
-        setInvoices((prev) => [...prev, newInvoice]);
-        logActivity('create', 'invoice', newInvoice.id);
-        return newInvoice;
-    }, [invoices.length, logActivity]);
+        setInvoices((prev) => [...prev, normalizedInvoice]);
+        logActivity('create', 'invoice', normalizedInvoice.id);
+        return normalizedInvoice;
+    }, [invoices, logActivity]);
 
     const updateInvoice = useCallback((id: string, data: Partial<Invoice>) => {
-        setInvoices((prev) => prev.map((i) => (i.id === id ? { ...i, ...data } : i)));
+        setInvoices((prev) =>
+            prev.map((invoice) => (
+                invoice.id === id ? normalizeInvoice({ ...invoice, ...data }) : invoice
+            ))
+        );
         logActivity('update', 'invoice', id);
     }, [logActivity]);
 
     const recordPayment = useCallback((invoiceId: string, paymentData: Omit<Payment, 'id' | 'invoiceId'>) => {
-        const payment: Payment = {
-            id: generateId('pay'),
-            invoiceId,
-            ...paymentData,
-        };
-
         setInvoices((prev) =>
             prev.map((inv) => {
                 if (inv.id !== invoiceId) return inv;
+
+                const alreadyPaid = getInvoicePaidAmount(inv);
+                const remaining = Math.max(inv.total - alreadyPaid, 0);
+                const amountToApply = Math.min(Math.max(paymentData.amount, 0), remaining);
+                if (amountToApply <= 0) return inv;
+
+                const payment: Payment = {
+                    id: generateId('pay'),
+                    invoiceId,
+                    ...paymentData,
+                    amount: amountToApply,
+                };
+
                 const payments = [...inv.payments, payment];
-                const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-                const status = totalPaid >= inv.total ? 'paid' : 'partial';
+                const totalPaid = getInvoicePaidAmount({ ...inv, payments });
 
                 let paymentPlan = inv.paymentPlan;
                 if (paymentPlan) {
-                    const paidInstallments = Math.min(
-                        paymentPlan.paidInstallments + 1,
-                        paymentPlan.totalInstallments
-                    );
+                    const paidInstallments = Math.min(Math.floor(totalPaid / paymentPlan.installmentAmount), paymentPlan.totalInstallments);
                     paymentPlan = { ...paymentPlan, paidInstallments };
                 }
 
+                const status = computeInvoiceStatus(inv, totalPaid);
                 return { ...inv, payments, status, paymentPlan };
             })
         );
@@ -363,15 +413,18 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                         invoice.paymentPlan.paidInstallments + 1,
                         invoice.paymentPlan.totalInstallments
                     );
-                    const isFullyPaid = paidInstallments >= invoice.paymentPlan.totalInstallments;
+                    const totalPaid = Math.min(
+                        paidInstallments * invoice.paymentPlan.installmentAmount,
+                        invoice.total
+                    );
                     return {
                         ...invoice,
-                        status: isFullyPaid ? 'paid' : 'partial',
+                        status: computeInvoiceStatus(invoice, totalPaid),
                         paymentPlan: { ...invoice.paymentPlan, paidInstallments },
                     };
                 }
 
-                return { ...invoice, status: 'paid' };
+                return { ...invoice, status: computeInvoiceStatus(invoice, invoice.total) };
             })
         );
     }, []);

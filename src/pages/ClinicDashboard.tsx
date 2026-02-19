@@ -54,6 +54,14 @@ const appointmentBillingLabel: Record<Appointment['type'], string> = {
     emergency: 'Prise en charge urgence',
 };
 
+const appointmentDefaultPrice: Record<Appointment['type'], number> = {
+    consultation: 45,
+    vaccination: 75,
+    surgery: 180,
+    'follow-up': 35,
+    emergency: 95,
+};
+
 const stepConfig: { key: PipelineStatus; label: string; icon: typeof Clock; color: string; bg: string }[] = [
     { key: 'scheduled', label: 'Planifie', icon: Clock, color: 'text-primary-600', bg: 'bg-primary-500' },
     { key: 'arrived', label: 'Arrive', icon: UserCheck, color: 'text-secondary-600', bg: 'bg-secondary-500' },
@@ -69,8 +77,6 @@ export function ClinicDashboard() {
     const toast = useToast();
     const [showNewAppointment, setShowNewAppointment] = useState(false);
     const [showInvoiceForm, setShowInvoiceForm] = useState(false);
-    const [invoicePatientId, setInvoicePatientId] = useState<string | undefined>(undefined);
-    const [invoiceDefaultLines, setInvoiceDefaultLines] = useState<InvoiceFormData['lines'] | undefined>(undefined);
     const [consultingAppointment, setConsultingAppointment] = useState<Appointment | null>(null);
     const [showCounterSale, setShowCounterSale] = useState(false);
 
@@ -81,13 +87,19 @@ export function ClinicDashboard() {
         [appointments, today]
     );
 
-    const invoicedSet = useMemo(() =>
+    const invoicedAppointmentSet = useMemo(() =>
+        new Set(invoices.map((inv) => inv.sourceAppointmentId).filter((id): id is string => !!id)),
+        [invoices]
+    );
+    const legacyInvoicedSet = useMemo(() =>
         new Set(invoices.map((inv) => `${inv.patientId}-${inv.date}`)),
         [invoices]
     );
 
     const isUnbilled = (a: Appointment) =>
-        a.status === 'completed' && !invoicedSet.has(`${a.patientId}-${a.date}`);
+        a.status === 'completed'
+        && !invoicedAppointmentSet.has(a.id)
+        && !legacyInvoicedSet.has(`${a.patientId}-${a.date}`);
 
     const patientAlertsMap = useMemo(() => {
         const map = new Map<string, { description: string; severity: string }[]>();
@@ -127,7 +139,26 @@ export function ClinicDashboard() {
         setConsultingAppointment(appointment);
     };
 
-    const handleCompleteConsultation = (record: MedicalRecordFormData, prescribedProducts: { productId: string; productName: string; quantity: number; posology: string }[]) => {
+    const createAutoInvoiceFromAppointment = (appointment: Appointment, lines?: InvoiceFormData['lines']) => {
+        const patient = patients.find((p) => p.id === appointment.patientId);
+        if (!patient) return null;
+        return addInvoice({
+            patientId: appointment.patientId,
+            patientName: patient.name,
+            ownerName: `${patient.owner.firstName} ${patient.owner.lastName}`,
+            source: 'consultation',
+            sourceAppointmentId: appointment.id,
+            date: appointment.date,
+            dueDate: appointment.date,
+            lines: lines && lines.length > 0 ? lines : buildDefaultServiceLine(appointment),
+        });
+    };
+
+    const handleCompleteConsultation = (
+        record: MedicalRecordFormData,
+        prescribedProducts: { productId: string; productName: string; quantity: number; posology: string }[],
+        billingLines: InvoiceFormData['lines']
+    ) => {
         if (!consultingAppointment) return;
         addMedicalRecord(consultingAppointment.patientId, {
             date: record.date, type: record.type, diagnosis: record.diagnosis,
@@ -141,7 +172,11 @@ export function ClinicDashboard() {
             adjustProductStock(rx.productId, -rx.quantity, 'prescription', `Prescription pour ${consultingAppointment.patientName}`);
         }
         updateAppointmentStatus(consultingAppointment.id, 'completed');
+        const invoice = createAutoInvoiceFromAppointment(consultingAppointment, billingLines);
         toast.success(`Consultation terminee pour ${consultingAppointment.patientName}`);
+        if (invoice) {
+            toast.success(`Facture ${invoice.invoiceNumber} generee automatiquement`);
+        }
     };
 
     const buildDefaultServiceLine = (apt: Appointment): InvoiceFormData['lines'] => ([
@@ -149,20 +184,11 @@ export function ClinicDashboard() {
             lineType: 'service',
             description: appointmentBillingLabel[apt.type],
             quantity: 1,
-            unitPrice: 0,
+            unitPrice: appointmentDefaultPrice[apt.type],
         },
     ]);
 
-    const handleInvoice = (apt: Appointment, defaultLines?: InvoiceFormData['lines']) => {
-        setInvoicePatientId(apt.patientId);
-        setInvoiceDefaultLines(defaultLines ?? buildDefaultServiceLine(apt));
-        setShowInvoiceForm(true);
-        setConsultingAppointment(null);
-    };
-
     const handleCounterSale = () => {
-        setInvoicePatientId(undefined);
-        setInvoiceDefaultLines(undefined);
         setShowCounterSale(true);
         setShowInvoiceForm(true);
     };
@@ -187,6 +213,7 @@ export function ClinicDashboard() {
             patientId: data.patientId,
             patientName: patient?.name ?? '',
             ownerName: patient ? `${patient.owner.firstName} ${patient.owner.lastName}` : '',
+            source: showCounterSale ? 'counter_sale' : 'manual',
             date: new Date().toISOString().split('T')[0],
             dueDate: data.dueDate, lines: data.lines,
         });
@@ -201,8 +228,6 @@ export function ClinicDashboard() {
         toast.success(showCounterSale ? 'Vente comptoir enregistree' : 'Facture creee');
         setShowInvoiceForm(false);
         setShowCounterSale(false);
-        setInvoiceDefaultLines(undefined);
-        setInvoicePatientId(undefined);
     };
 
     const greeting = (() => {
@@ -244,15 +269,18 @@ export function ClinicDashboard() {
             actionColor = 'bg-amber-500 hover:bg-amber-600 text-white';
             onAction = () => handleContinueConsultation(apt);
         } else if (apt.status === 'completed' && unbilled) {
-            actionLabel = 'Facturer';
+            actionLabel = 'Generer facture';
             actionIcon = <Receipt className="w-4 h-4" />;
             actionColor = 'bg-emerald-600 hover:bg-emerald-700 text-white';
-            onAction = () => handleInvoice(apt);
+            onAction = () => {
+                const invoice = createAutoInvoiceFromAppointment(apt);
+                if (invoice) toast.success(`Facture ${invoice.invoiceNumber} generee`);
+            };
         } else if (apt.status === 'completed') {
-            actionLabel = 'Voir la fiche';
+            actionLabel = 'Voir facturation';
             actionIcon = <ArrowRight className="w-4 h-4" />;
             actionColor = 'bg-slate-100 hover:bg-slate-200 text-slate-700';
-            onAction = () => navigate(`/patients/${apt.patientId}`);
+            onAction = () => navigate('/billing');
         }
 
         // Status dot color
@@ -583,8 +611,11 @@ export function ClinicDashboard() {
                                                 <span className="text-sm text-slate-700">{apt.patientName}</span>
                                                 <span className="text-xs text-slate-400">{apt.ownerName}</span>
                                             </div>
-                                            <button onClick={() => handleInvoice(apt)} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2">
-                                                <Receipt className="w-4 h-4" /> Facturer
+                                            <button onClick={() => {
+                                                const invoice = createAutoInvoiceFromAppointment(apt);
+                                                if (invoice) toast.success(`Facture ${invoice.invoiceNumber} generee`);
+                                            }} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2">
+                                                <Receipt className="w-4 h-4" /> Generer
                                             </button>
                                         </div>
                                     ))}
@@ -602,12 +633,8 @@ export function ClinicDashboard() {
                 onClose={() => {
                     setShowInvoiceForm(false);
                     setShowCounterSale(false);
-                    setInvoiceDefaultLines(undefined);
-                    setInvoicePatientId(undefined);
                 }}
                 onSubmit={handleNewInvoice}
-                defaultPatientId={invoicePatientId}
-                defaultLines={invoiceDefaultLines}
             />
 
             {/* Consultation Panel — vet only */}
@@ -618,7 +645,6 @@ export function ClinicDashboard() {
                     patient={consultingPatient}
                     products={products}
                     onComplete={handleCompleteConsultation}
-                    onInvoice={(defaultLines) => handleInvoice(consultingAppointment, defaultLines)}
                     onClose={() => setConsultingAppointment(null)}
                 />
             )}

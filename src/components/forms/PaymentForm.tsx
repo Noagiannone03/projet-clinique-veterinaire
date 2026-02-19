@@ -5,6 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
+import { useEffect } from 'react';
 
 const methodOptions = [
     { value: 'card', label: 'Carte bancaire' },
@@ -26,9 +27,19 @@ export function PaymentForm({ isOpen, onClose, onSubmit, invoiceNumber, remainin
         resolver: zodResolver(paymentSchema),
         defaultValues: {
             amount: remainingAmount,
+            method: 'card',
             date: new Date().toISOString().split('T')[0],
         },
     });
+
+    useEffect(() => {
+        if (!isOpen) return;
+        reset({
+            amount: remainingAmount,
+            method: 'card',
+            date: new Date().toISOString().split('T')[0],
+        });
+    }, [isOpen, remainingAmount, reset, invoiceNumber]);
 
     const handleFormSubmit = (data: PaymentFormData) => {
         onSubmit(data);
@@ -42,7 +53,7 @@ export function PaymentForm({ isOpen, onClose, onSubmit, invoiceNumber, remainin
                 <p className="text-sm text-slate-600">
                     Montant restant : <strong className="text-slate-900">{remainingAmount.toFixed(2)} EUR</strong>
                 </p>
-                <Input label="Montant" type="number" step="0.01" error={errors.amount?.message} {...register('amount')} />
+                <Input label="Montant" type="number" step="0.01" min="0.01" max={remainingAmount} error={errors.amount?.message} {...register('amount')} />
                 <Select label="Methode de paiement" options={methodOptions} error={errors.method?.message} {...register('method')} />
                 <Input label="Date" type="date" error={errors.date?.message} {...register('date')} />
 

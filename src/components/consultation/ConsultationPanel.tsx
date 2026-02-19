@@ -5,7 +5,6 @@ import {
     Plus,
     Trash2,
     CheckCircle,
-    Receipt,
     ArrowRight,
     Search,
     Package,
@@ -25,8 +24,11 @@ interface ConsultationPanelProps {
     appointment: Appointment;
     patient: Patient;
     products: Product[];
-    onComplete: (record: MedicalRecordFormData, prescribedProducts: PrescriptionItem[]) => void;
-    onInvoice: (defaultLines?: InvoiceFormData['lines']) => void;
+    onComplete: (
+        record: MedicalRecordFormData,
+        prescribedProducts: PrescriptionItem[],
+        billingLines: InvoiceFormData['lines']
+    ) => void;
     onClose: () => void;
 }
 
@@ -58,10 +60,18 @@ const performedBillingLabel: Record<PerformedType, string> = {
     'follow-up': 'Consultation de suivi',
 };
 
-export function ConsultationPanel({ isOpen, appointment, patient, products, onComplete, onInvoice, onClose }: ConsultationPanelProps) {
+const performedDefaultPrice: Record<PerformedType, number> = {
+    consultation: 45,
+    surgery: 180,
+    emergency: 95,
+    'follow-up': 35,
+};
+
+export function ConsultationPanel({ isOpen, appointment, patient, products, onComplete, onClose }: ConsultationPanelProps) {
     const defaultPerformedType = appointmentToPerformedType[appointment.type];
     const [performedType, setPerformedType] = useState<PerformedType>(defaultPerformedType);
     const [performedProcedure, setPerformedProcedure] = useState('');
+    const [performedPrice, setPerformedPrice] = useState(performedDefaultPrice[defaultPerformedType]);
     const [diagnosis, setDiagnosis] = useState('');
     const [treatment, setTreatment] = useState('');
     const [notes, setNotes] = useState('');
@@ -70,11 +80,10 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
     const [searchQuery, setSearchQuery] = useState('');
     const [showProductPicker, setShowProductPicker] = useState(false);
 
-    if (!isOpen) return null;
-
     const age = (() => {
         const birth = new Date(patient.birthDate);
-        const diff = Date.now() - birth.getTime();
+        const referenceDate = new Date(`${appointment.date}T00:00:00`);
+        const diff = referenceDate.getTime() - birth.getTime();
         const years = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
         if (years > 0) return `${years} an${years > 1 ? 's' : ''}`;
         return `${Math.floor(diff / (30.4 * 24 * 60 * 60 * 1000))} mois`;
@@ -92,7 +101,7 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
         return medications.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
     }, [medications, searchQuery]);
 
-    const canComplete = diagnosis.trim() && treatment.trim() && performedProcedure.trim();
+    const canComplete = diagnosis.trim() && treatment.trim() && performedProcedure.trim() && performedPrice > 0;
     const sortedMedicalHistory = useMemo(
         () => [...patient.medicalHistory].sort((a, b) => b.date.localeCompare(a.date)),
         [patient.medicalHistory]
@@ -108,14 +117,14 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
     );
     const criticalAlerts = patient.alerts.filter((alert) => alert.severity === 'high');
 
-    const buildInvoiceDefaults = (): InvoiceFormData['lines'] => {
+    function buildInvoiceDefaults(): InvoiceFormData['lines'] {
         const procedure = performedProcedure.trim();
         const serviceDescription = `${performedBillingLabel[performedType]}${procedure ? ` - ${procedure}` : ''}`;
         const serviceLine: InvoiceFormData['lines'][number] = {
             lineType: 'service',
             description: serviceDescription,
             quantity: 1,
-            unitPrice: 0,
+            unitPrice: performedPrice,
         };
 
         const productLines: InvoiceFormData['lines'] = prescriptions.map((rx) => {
@@ -130,7 +139,15 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
         });
 
         return [serviceLine, ...productLines];
-    };
+    }
+
+    const billingPreview = (() => {
+        const lines = buildInvoiceDefaults();
+        const subtotal = lines.reduce((sum, line) => sum + (line.quantity * line.unitPrice), 0);
+        const tax = Math.round(subtotal * 0.2 * 100) / 100;
+        const total = Math.round((subtotal + tax) * 100) / 100;
+        return { subtotal, tax, total };
+    })();
 
     const addProduct = (product: Product) => {
         const existing = prescriptions.find((p) => p.productId === product.id);
@@ -162,6 +179,7 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
 
     const handleComplete = () => {
         if (!canComplete) return;
+        const billingLines = buildInvoiceDefaults();
         const renderedTreatment = `${performedTypeLabel[performedType]} - ${performedProcedure.trim()} · ${treatment.trim()}`;
         onComplete({
             date: appointment.date,
@@ -177,9 +195,11 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                 duration: '',
                 instructions: '',
             })),
-        }, prescriptions);
+        }, prescriptions, billingLines);
         setCompleted(true);
     };
+
+    if (!isOpen) return null;
 
     // ── Success ──
     if (completed) {
@@ -199,13 +219,14 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                             Stock debite pour {prescriptions.length} produit(s)
                         </p>
                     )}
-                    <button
-                        onClick={() => onInvoice(buildInvoiceDefaults())}
-                        className="w-full py-3.5 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 mb-3"
-                    >
-                        <Receipt className="w-5 h-5" />
-                        Facturer cette consultation
-                    </button>
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 mb-3 text-left">
+                        <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-1">
+                            Facture generee automatiquement
+                        </p>
+                        <p className="text-sm text-emerald-800">
+                            Total estime: <span className="font-bold">{billingPreview.total.toFixed(2)} EUR TTC</span>
+                        </p>
+                    </div>
                     <button
                         onClick={onClose}
                         className="w-full py-3 rounded-xl text-slate-500 hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 text-sm"
@@ -342,7 +363,7 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                         <h3 className="text-sm font-bold text-secondary-900 mb-3 uppercase tracking-wide">
                             Acte pratique
                         </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                                     Type d'acte <span className="text-rose-500">*</span>
@@ -368,6 +389,19 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                                     onChange={(e) => setPerformedProcedure(e.target.value)}
                                     placeholder="Ex: Suture plaie, detartrage, ovariectomie..."
                                     className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200 focus:border-secondary-500 placeholder:text-slate-300"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                                    Tarif acte HT (EUR) <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    step="0.01"
+                                    value={performedPrice}
+                                    onChange={(e) => setPerformedPrice(Math.max(0, Number(e.target.value) || 0))}
+                                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-secondary-200 focus:border-secondary-500"
                                 />
                             </div>
                         </div>
