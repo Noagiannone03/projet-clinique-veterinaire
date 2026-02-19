@@ -1,70 +1,55 @@
-import { useParams, Link } from 'react-router-dom';
+import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Header } from '../components/layout';
+import { Tabs, Badge, Button, Card } from '../components/ui';
+import { useToast } from '../components/ui/Toast';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { PatientForm, MedicalRecordForm, VaccinationForm, AppointmentForm } from '../components/forms';
+import { useClinicData } from '../context/clinicState';
+import { useAuth } from '../context/AuthContext';
 import {
-    ArrowLeft,
-    Dog,
-    Cat,
-    Bird,
-    Rabbit,
-    AlertTriangle,
-    Syringe,
-    FileText,
-    Calendar,
-    User,
-    Phone,
-    Mail,
-    MapPin,
-    Weight,
-    Palette,
-    Cpu,
-    Clock,
-    Plus,
+    ArrowLeft, Dog, Cat, Bird, Rabbit, AlertTriangle, Syringe, FileText, Calendar,
+    User, Phone, Mail, MapPin, Weight, Palette, Cpu, Clock, Plus, Edit, Trash2, Printer, Receipt,
 } from 'lucide-react';
-import { getPatientById } from '../data/patients';
 import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import type { PatientFormData, MedicalRecordFormData, VaccinationFormData, AppointmentFormData } from '../schemas';
 
-const speciesIcons = {
-    dog: Dog,
-    cat: Cat,
-    bird: Bird,
-    rabbit: Rabbit,
-    other: Dog,
-};
-
-const speciesLabels = {
-    dog: 'Chien',
-    cat: 'Chat',
-    bird: 'Oiseau',
-    rabbit: 'Lapin',
-    other: 'Autre',
-};
+const speciesIcons = { dog: Dog, cat: Cat, bird: Bird, rabbit: Rabbit, other: Dog };
+const speciesLabels = { dog: 'Chien', cat: 'Chat', bird: 'Oiseau', rabbit: 'Lapin', other: 'Autre' };
 
 function calculateAge(birthDate: string): string {
     const birth = new Date(birthDate);
     const now = new Date();
     const years = differenceInYears(now, birth);
     const months = differenceInMonths(now, birth) % 12;
-
-    if (years === 0) {
-        return `${months} mois`;
-    }
+    if (years === 0) return `${months} mois`;
     return years === 1 ? `${years} an` : `${years} ans`;
 }
 
 export function PatientDetail() {
     const { id } = useParams<{ id: string }>();
-    const patient = getPatientById(id || '');
+    const navigate = useNavigate();
+    const { role } = useAuth();
+    const toast = useToast();
+    const { patients, updatePatient, deletePatient, addMedicalRecord, addVaccination, appointments, addAppointment, invoices } = useClinicData();
+
+    const patient = patients.find((p) => p.id === id);
+
+    const [activeTab, setActiveTab] = useState('info');
+    const [showEditPatient, setShowEditPatient] = useState(false);
+    const [showNewRecord, setShowNewRecord] = useState(false);
+    const [showNewVaccination, setShowNewVaccination] = useState(false);
+    const [showNewAppointment, setShowNewAppointment] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     if (!patient) {
         return (
             <div>
                 <Header title="Patient non trouve" />
                 <div className="p-8 text-center">
-                    <p className="text-slate-500">Ce patient n'existe pas</p>
-                    <Link to="/patients" className="btn-primary mt-4 inline-flex">
-                        Retour aux patients
-                    </Link>
+                    <p className="text-slate-500 mb-4">Ce patient n'existe pas</p>
+                    <Link to="/patients" className="text-primary-600 hover:underline">Retour aux patients</Link>
                 </div>
             </div>
         );
@@ -72,237 +57,320 @@ export function PatientDetail() {
 
     const Icon = speciesIcons[patient.species];
     const hasHighAlert = patient.alerts.some((a) => a.severity === 'high');
+    const patientAppointments = appointments.filter((a) => a.patientId === patient.id).sort((a, b) => b.date.localeCompare(a.date));
+    const patientInvoices = invoices.filter((i) => i.patientId === patient.id);
+
+    const handleUpdatePatient = (data: PatientFormData) => {
+        updatePatient(patient.id, {
+            name: data.name,
+            species: data.species,
+            breed: data.breed,
+            birthDate: data.birthDate,
+            weight: data.weight,
+            color: data.color,
+            microchip: data.microchip,
+            owner: { ...patient.owner, ...data.owner },
+        });
+        toast.success('Patient modifie');
+    };
+
+    const handleAddRecord = (data: MedicalRecordFormData) => {
+        addMedicalRecord(patient.id, {
+            date: data.date,
+            type: data.type,
+            diagnosis: data.diagnosis,
+            treatment: data.treatment,
+            notes: data.notes || '',
+            veterinarian: data.veterinarian,
+            prescriptions: (data.prescriptions || []).map((p) => ({
+                id: `presc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                medication: p.medication,
+                dosage: p.dosage,
+                frequency: p.frequency,
+                duration: p.duration,
+                instructions: p.instructions || '',
+            })),
+        });
+        toast.success('Consultation ajoutee');
+    };
+
+    const handleAddVaccination = (data: VaccinationFormData) => {
+        addVaccination(patient.id, data);
+        toast.success('Vaccination ajoutee');
+    };
+
+    const handleAddAppointment = (data: AppointmentFormData) => {
+        const result = addAppointment({
+            patientId: patient.id,
+            patientName: patient.name,
+            ownerName: `${patient.owner.firstName} ${patient.owner.lastName}`,
+            species: patient.species,
+            date: data.date,
+            time: data.time,
+            duration: Number(data.duration),
+            type: data.type,
+            veterinarian: data.veterinarian,
+            notes: data.notes,
+        });
+        if (result.ok) toast.success('RDV cree');
+        else toast.error(result.message);
+    };
+
+    const handleDelete = () => {
+        deletePatient(patient.id);
+        toast.success('Patient supprime');
+        navigate('/patients');
+    };
+
+    const tabs = [
+        { key: 'info', label: 'Informations', icon: <User className="w-4 h-4" /> },
+        { key: 'medical', label: 'Historique', icon: <FileText className="w-4 h-4" />, count: patient.medicalHistory.length },
+        { key: 'vaccinations', label: 'Vaccinations', icon: <Syringe className="w-4 h-4" />, count: patient.vaccinations.length },
+        { key: 'appointments', label: 'Rendez-vous', icon: <Calendar className="w-4 h-4" />, count: patientAppointments.length },
+        { key: 'billing', label: 'Facturation', icon: <Receipt className="w-4 h-4" />, count: patientInvoices.length },
+    ];
 
     return (
         <div>
-            <Header title={patient.name} subtitle={patient.breed} />
+            <Header
+                title={patient.name}
+                subtitle={`${speciesLabels[patient.species]} - ${patient.breed}`}
+                breadcrumbs={[{ label: 'Patients', to: '/patients' }, { label: patient.name }]}
+            />
 
-            <div className="p-8">
-                {/* Back Button */}
-                <Link
-                    to="/patients"
-                    className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    Retour aux patients
+            <div className="p-4 sm:p-8">
+                <Link to="/patients" className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 text-sm">
+                    <ArrowLeft className="w-4 h-4" /> Retour
                 </Link>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Left Column - Patient Info */}
-                    <div className="space-y-6">
-                        {/* Patient Card */}
-                        <div className="card">
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
-                                    <Icon className="w-8 h-8 text-primary-600" />
-                                </div>
-                                <div>
-                                    <h2 className="text-2xl font-bold text-slate-900">{patient.name}</h2>
-                                    <p className="text-slate-500">
-                                        {speciesLabels[patient.species]} - {patient.breed}
-                                    </p>
-                                </div>
-                            </div>
+                {/* Alert Banner */}
+                {hasHighAlert && (
+                    <div className="mb-4 p-4 rounded-xl bg-rose-100 border-2 border-rose-300">
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-6 h-6 text-rose-600" />
+                            <h3 className="font-bold text-rose-900 text-lg">ATTENTION</h3>
+                        </div>
+                        {patient.alerts.filter((a) => a.severity === 'high').map((a) => (
+                            <p key={a.id} className="text-rose-800 font-medium mt-1">{a.description}</p>
+                        ))}
+                    </div>
+                )}
 
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <Calendar className="w-5 h-5 text-slate-400" />
-                                    <div>
-                                        <p className="text-sm text-slate-500">Age</p>
-                                        <p className="font-medium text-slate-900">{calculateAge(patient.birthDate)}</p>
+                {/* Patient header */}
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
+                        <Icon className="w-8 h-8 text-primary-600" />
+                    </div>
+                    <div className="flex-1">
+                        <h2 className="text-2xl font-bold text-slate-900">{patient.name}</h2>
+                        <p className="text-slate-500">{speciesLabels[patient.species]} - {patient.breed} - {calculateAge(patient.birthDate)}</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" size="sm" icon={<Printer className="w-4 h-4" />} onClick={() => window.print()}>Imprimer</Button>
+                        {(role === 'veterinarian' || role === 'assistant') && (
+                            <Button variant="outline" size="sm" icon={<Edit className="w-4 h-4" />} onClick={() => setShowEditPatient(true)}>Modifier</Button>
+                        )}
+                        {role === 'veterinarian' && (
+                            <Button variant="danger" size="sm" icon={<Trash2 className="w-4 h-4" />} onClick={() => setShowDeleteConfirm(true)}>Supprimer</Button>
+                        )}
+                    </div>
+                </div>
+
+                <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab}>
+                    {(tab) => {
+                        if (tab === 'info') return (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <Card>
+                                    <h3 className="font-semibold text-slate-900 mb-4">Fiche patient</h3>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3"><Calendar className="w-4 h-4 text-slate-400" /><div><p className="text-xs text-slate-500">Age</p><p className="text-sm font-medium">{calculateAge(patient.birthDate)}</p></div></div>
+                                        <div className="flex items-center gap-3"><Weight className="w-4 h-4 text-slate-400" /><div><p className="text-xs text-slate-500">Poids</p><p className="text-sm font-medium">{patient.weight} kg</p></div></div>
+                                        <div className="flex items-center gap-3"><Palette className="w-4 h-4 text-slate-400" /><div><p className="text-xs text-slate-500">Couleur</p><p className="text-sm font-medium">{patient.color}</p></div></div>
+                                        {patient.microchip && <div className="flex items-center gap-3"><Cpu className="w-4 h-4 text-slate-400" /><div><p className="text-xs text-slate-500">Micropuce</p><p className="text-sm font-medium font-mono">{patient.microchip}</p></div></div>}
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Weight className="w-5 h-5 text-slate-400" />
-                                    <div>
-                                        <p className="text-sm text-slate-500">Poids</p>
-                                        <p className="font-medium text-slate-900">{patient.weight} kg</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Palette className="w-5 h-5 text-slate-400" />
-                                    <div>
-                                        <p className="text-sm text-slate-500">Couleur</p>
-                                        <p className="font-medium text-slate-900">{patient.color}</p>
-                                    </div>
-                                </div>
-                                {patient.microchip && (
-                                    <div className="flex items-center gap-3">
-                                        <Cpu className="w-5 h-5 text-slate-400" />
-                                        <div>
-                                            <p className="text-sm text-slate-500">Puce</p>
-                                            <p className="font-medium text-slate-900 font-mono text-sm">
-                                                {patient.microchip}
-                                            </p>
+                                    {patient.alerts.length > 0 && (
+                                        <div className="mt-4 pt-4 border-t border-slate-200">
+                                            <h4 className="text-sm font-medium text-slate-700 mb-2">Alertes</h4>
+                                            {patient.alerts.map((a) => (
+                                                <div key={a.id} className={`p-2 rounded-lg mb-2 ${a.severity === 'high' ? 'bg-rose-100 text-rose-900' : a.severity === 'medium' ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-700'}`}>
+                                                    <div className="flex items-center justify-between">
+                                                        <span className="text-xs font-medium capitalize">{a.type}</span>
+                                                        <Badge variant={a.severity === 'high' ? 'danger' : a.severity === 'medium' ? 'warning' : 'neutral'}>{a.severity === 'high' ? 'Critique' : a.severity === 'medium' ? 'Moyen' : 'Faible'}</Badge>
+                                                    </div>
+                                                    <p className="text-sm mt-1">{a.description}</p>
+                                                </div>
+                                            ))}
                                         </div>
+                                    )}
+                                </Card>
+                                <Card>
+                                    <h3 className="font-semibold text-slate-900 mb-4">Proprietaire</h3>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-3"><User className="w-4 h-4 text-slate-400" /><p className="text-sm">{patient.owner.firstName} {patient.owner.lastName}</p></div>
+                                        <div className="flex items-center gap-3"><Phone className="w-4 h-4 text-slate-400" /><p className="text-sm">{patient.owner.phone}</p></div>
+                                        <div className="flex items-center gap-3"><Mail className="w-4 h-4 text-slate-400" /><p className="text-sm">{patient.owner.email}</p></div>
+                                        <div className="flex items-center gap-3"><MapPin className="w-4 h-4 text-slate-400" /><p className="text-sm">{patient.owner.address}</p></div>
+                                    </div>
+                                </Card>
+                            </div>
+                        );
+
+                        if (tab === 'medical') return (
+                            <div>
+                                <div className="flex justify-end mb-4">
+                                    {role === 'veterinarian' && (
+                                        <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowNewRecord(true)}>Nouvelle consultation</Button>
+                                    )}
+                                    {role === 'assistant' && (
+                                        <p className="text-sm text-slate-400 italic">Seul le veterinaire peut ajouter des consultations</p>
+                                    )}
+                                </div>
+                                {patient.medicalHistory.length === 0 ? (
+                                    <p className="text-slate-500 text-sm text-center py-8">Aucun historique medical</p>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {patient.medicalHistory.map((record) => (
+                                            <div key={record.id} className="bg-white rounded-xl border border-slate-200 p-4 border-l-4 border-l-primary-500">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock className="w-4 h-4 text-slate-400" />
+                                                        <span className="text-sm text-slate-500">{format(new Date(record.date), 'dd MMMM yyyy', { locale: fr })}</span>
+                                                        <Badge variant="info">{record.type}</Badge>
+                                                    </div>
+                                                    <span className="text-sm text-slate-500">{record.veterinarian}</span>
+                                                </div>
+                                                <h4 className="font-medium text-slate-900">{record.diagnosis}</h4>
+                                                <p className="text-sm text-slate-600 mt-1">{record.treatment}</p>
+                                                {record.notes && <p className="text-sm text-slate-500 mt-1 italic">{record.notes}</p>}
+                                                {record.prescriptions.length > 0 && (
+                                                    <div className="mt-3 p-3 bg-slate-50 rounded-lg">
+                                                        <p className="text-xs font-medium text-slate-500 uppercase mb-2">Prescriptions</p>
+                                                        {record.prescriptions.map((p) => (
+                                                            <div key={p.id} className="text-sm"><span className="font-medium text-slate-900">{p.medication}</span><span className="text-slate-500"> - {p.dosage}, {p.frequency}, {p.duration}</span></div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </div>
-                        </div>
+                        );
 
-                        {/* Owner Card */}
-                        <div className="card">
-                            <h3 className="font-semibold text-slate-900 mb-4">Proprietaire</h3>
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-3">
-                                    <User className="w-5 h-5 text-slate-400" />
-                                    <p className="text-slate-900">
-                                        {patient.owner.firstName} {patient.owner.lastName}
-                                    </p>
+                        if (tab === 'vaccinations') return (
+                            <div>
+                                <div className="flex justify-end mb-4">
+                                    {(role === 'veterinarian' || role === 'assistant') && (
+                                        <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowNewVaccination(true)}>Ajouter vaccination</Button>
+                                    )}
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <Phone className="w-5 h-5 text-slate-400" />
-                                    <p className="text-slate-900">{patient.owner.phone}</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Mail className="w-5 h-5 text-slate-400" />
-                                    <p className="text-slate-900">{patient.owner.email}</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <MapPin className="w-5 h-5 text-slate-400" />
-                                    <p className="text-slate-900 text-sm">{patient.owner.address}</p>
-                                </div>
+                                {patient.vaccinations.length === 0 ? (
+                                    <p className="text-slate-500 text-sm text-center py-8">Aucune vaccination</p>
+                                ) : (
+                                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                                        <table className="w-full text-sm">
+                                            <thead><tr className="border-b border-slate-200 bg-slate-50">
+                                                <th className="text-left py-3 px-4 font-medium text-slate-600">Vaccin</th>
+                                                <th className="text-left py-3 px-4 font-medium text-slate-600">Date</th>
+                                                <th className="text-left py-3 px-4 font-medium text-slate-600">Prochain rappel</th>
+                                                <th className="text-left py-3 px-4 font-medium text-slate-600">Statut</th>
+                                                <th className="text-left py-3 px-4 font-medium text-slate-600">Veterinaire</th>
+                                            </tr></thead>
+                                            <tbody>
+                                                {patient.vaccinations.map((vac) => {
+                                                    const nextDue = new Date(vac.nextDueDate);
+                                                    const isOverdue = nextDue < new Date();
+                                                    const daysDiff = Math.round((nextDue.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                                                    const isSoon = !isOverdue && daysDiff <= 30;
+                                                    return (
+                                                        <tr key={vac.id} className="border-b border-slate-100">
+                                                            <td className="py-3 px-4 font-medium text-slate-900">{vac.name}</td>
+                                                            <td className="py-3 px-4 text-slate-600">{format(new Date(vac.date), 'dd/MM/yyyy')}</td>
+                                                            <td className={`py-3 px-4 font-medium ${isOverdue ? 'text-rose-600' : isSoon ? 'text-amber-600' : 'text-slate-900'}`}>{format(nextDue, 'dd/MM/yyyy')}</td>
+                                                            <td className="py-3 px-4"><Badge variant={isOverdue ? 'danger' : isSoon ? 'warning' : 'success'}>{isOverdue ? 'En retard' : isSoon ? 'Bientot' : 'A jour'}</Badge></td>
+                                                            <td className="py-3 px-4 text-slate-600">{vac.veterinarian}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </div>
+                        );
 
-                    {/* Right Column - Medical Info */}
-                    <div className="lg:col-span-2 space-y-6">
-                        {/* Alerts */}
-                        {patient.alerts.length > 0 && (
-                            <div className={`card ${hasHighAlert ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <AlertTriangle className={`w-5 h-5 ${hasHighAlert ? 'text-rose-600' : 'text-amber-600'}`} />
-                                    <h3 className={`font-semibold ${hasHighAlert ? 'text-rose-900' : 'text-amber-900'}`}>
-                                        Alertes
-                                    </h3>
-                                </div>
-                                <div className="space-y-3">
-                                    {patient.alerts.map((alert) => (
-                                        <div
-                                            key={alert.id}
-                                            className={`p-3 rounded-lg ${alert.severity === 'high'
-                                                ? 'bg-rose-100 text-rose-900'
-                                                : alert.severity === 'medium'
-                                                    ? 'bg-amber-100 text-amber-900'
-                                                    : 'bg-slate-100 text-slate-900'
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium capitalize">{alert.type}</span>
-                                                <span
-                                                    className={
-                                                        alert.severity === 'high'
-                                                            ? 'badge-danger'
-                                                            : alert.severity === 'medium'
-                                                                ? 'badge-warning'
-                                                                : 'badge-neutral'
-                                                    }
-                                                >
-                                                    {alert.severity === 'high' ? 'Critique' : alert.severity === 'medium' ? 'Moyen' : 'Faible'}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm mt-1">{alert.description}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Vaccinations */}
-                        <div className="card">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                    <Syringe className="w-5 h-5 text-primary-600" />
-                                    <h3 className="font-semibold text-slate-900">Vaccinations</h3>
-                                </div>
-                                <button className="btn-outline text-sm py-1.5">
-                                    <Plus className="w-4 h-4" />
-                                    Ajouter
-                                </button>
-                            </div>
-                            {patient.vaccinations.length === 0 ? (
-                                <p className="text-slate-500 text-sm">Aucune vaccination enregistree</p>
-                            ) : (
-                                <div className="space-y-3">
-                                    {patient.vaccinations.map((vac) => {
-                                        const nextDue = new Date(vac.nextDueDate);
-                                        const isOverdue = nextDue < new Date();
-                                        const isSoon = !isOverdue && differenceInMonths(nextDue, new Date()) <= 1;
-
-                                        return (
-                                            <div key={vac.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
+                        if (tab === 'appointments') return (
+                            <div>
+                                {role !== 'director' && (
+                                    <div className="flex justify-end mb-4">
+                                        <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowNewAppointment(true)}>Nouveau RDV</Button>
+                                    </div>
+                                )}
+                                {patientAppointments.length === 0 ? (
+                                    <p className="text-slate-500 text-sm text-center py-8">Aucun rendez-vous</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {patientAppointments.map((apt) => (
+                                            <div key={apt.id} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
                                                 <div>
-                                                    <p className="font-medium text-slate-900">{vac.name}</p>
-                                                    <p className="text-sm text-slate-500">
-                                                        Fait le {format(new Date(vac.date), 'dd MMM yyyy', { locale: fr })}
-                                                    </p>
+                                                    <p className="font-medium text-slate-900">{format(new Date(apt.date), 'dd MMMM yyyy', { locale: fr })} a {apt.time}</p>
+                                                    <p className="text-sm text-slate-500">{apt.type} - {apt.veterinarian} - {apt.duration} min</p>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm text-slate-500">Prochain rappel</p>
-                                                    <p className={`font-medium ${isOverdue ? 'text-rose-600' : isSoon ? 'text-amber-600' : 'text-slate-900'}`}>
-                                                        {format(nextDue, 'dd MMM yyyy', { locale: fr })}
-                                                    </p>
-                                                </div>
+                                                <Badge variant={apt.status === 'completed' ? 'success' : apt.status === 'cancelled' ? 'danger' : apt.status === 'in-progress' ? 'warning' : 'neutral'}>
+                                                    {apt.status === 'completed' ? 'Termine' : apt.status === 'cancelled' ? 'Annule' : apt.status === 'in-progress' ? 'En cours' : 'Planifie'}
+                                                </Badge>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Medical History */}
-                        <div className="card">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                    <FileText className="w-5 h-5 text-primary-600" />
-                                    <h3 className="font-semibold text-slate-900">Historique medical</h3>
-                                </div>
-                                <button className="btn-primary text-sm py-1.5">
-                                    <Plus className="w-4 h-4" />
-                                    Nouvelle consultation
-                                </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            {patient.medicalHistory.length === 0 ? (
-                                <p className="text-slate-500 text-sm">Aucun historique</p>
-                            ) : (
-                                <div className="space-y-4">
-                                    {patient.medicalHistory.map((record) => (
-                                        <div key={record.id} className="border-l-4 border-primary-500 pl-4 py-2">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <Clock className="w-4 h-4 text-slate-400" />
-                                                    <span className="text-sm text-slate-500">
-                                                        {format(new Date(record.date), 'dd MMMM yyyy', { locale: fr })}
-                                                    </span>
-                                                    <span className="badge-info capitalize">{record.type}</span>
-                                                </div>
-                                                <span className="text-sm text-slate-500">{record.veterinarian}</span>
-                                            </div>
-                                            <h4 className="font-medium text-slate-900 mt-2">{record.diagnosis}</h4>
-                                            <p className="text-sm text-slate-600 mt-1">{record.treatment}</p>
-                                            {record.notes && (
-                                                <p className="text-sm text-slate-500 mt-1 italic">{record.notes}</p>
-                                            )}
-                                            {record.prescriptions.length > 0 && (
-                                                <div className="mt-3 p-3 bg-slate-50 rounded-lg">
-                                                    <p className="text-xs font-medium text-slate-500 uppercase mb-2">Prescriptions</p>
-                                                    {record.prescriptions.map((presc) => (
-                                                        <div key={presc.id} className="text-sm">
-                                                            <span className="font-medium text-slate-900">{presc.medication}</span>
-                                                            <span className="text-slate-500"> - {presc.dosage}, {presc.frequency}, {presc.duration}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
+                        );
+
+                        if (tab === 'billing') return (
+                            <div>
+                                {patientInvoices.length === 0 ? (
+                                    <p className="text-slate-500 text-sm text-center py-8">Aucune facture</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-4 mb-4">
+                                            <Card padding="sm">
+                                                <p className="text-xs text-slate-500">Total depense</p>
+                                                <p className="text-xl font-bold text-slate-900">{patientInvoices.reduce((s, i) => s + i.total, 0).toFixed(2)} EUR</p>
+                                            </Card>
+                                            <Card padding="sm">
+                                                <p className="text-xs text-slate-500">Impayees</p>
+                                                <p className="text-xl font-bold text-rose-600">{patientInvoices.filter((i) => i.status !== 'paid').length}</p>
+                                            </Card>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                                        {patientInvoices.map((inv) => (
+                                            <div key={inv.id} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-medium text-slate-900 font-mono">{inv.invoiceNumber}</p>
+                                                    <p className="text-sm text-slate-500">{format(new Date(inv.date), 'dd/MM/yyyy')}</p>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-bold text-slate-900">{inv.total.toFixed(2)} EUR</span>
+                                                    <Badge variant={inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}>
+                                                        {inv.status === 'paid' ? 'Paye' : inv.status === 'overdue' ? 'En retard' : 'En attente'}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+
+                        return null;
+                    }}
+                </Tabs>
             </div>
+
+            <PatientForm isOpen={showEditPatient} onClose={() => setShowEditPatient(false)} onSubmit={handleUpdatePatient} patient={patient} />
+            <MedicalRecordForm isOpen={showNewRecord} onClose={() => setShowNewRecord(false)} onSubmit={handleAddRecord} patientName={patient.name} />
+            <VaccinationForm isOpen={showNewVaccination} onClose={() => setShowNewVaccination(false)} onSubmit={handleAddVaccination} patientName={patient.name} />
+            <AppointmentForm isOpen={showNewAppointment} onClose={() => setShowNewAppointment(false)} onSubmit={handleAddAppointment} defaultPatientId={patient.id} />
+            <ConfirmDialog isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} onConfirm={handleDelete} title="Supprimer le patient" message={`Supprimer definitivement ${patient.name} et tout son historique ?`} confirmLabel="Supprimer" />
         </div>
     );
 }

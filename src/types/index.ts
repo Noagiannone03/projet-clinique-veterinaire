@@ -1,3 +1,14 @@
+// User & Auth Types
+export type Role = 'director' | 'veterinarian' | 'assistant';
+
+export interface User {
+    id: string;
+    name: string;
+    role: Role;
+    description: string;
+    icon: string;
+}
+
 // Patient Types
 export interface Owner {
     id: string;
@@ -67,11 +78,12 @@ export interface Appointment {
     species: Patient['species'];
     date: string;
     time: string;
-    duration: number; // in minutes
+    duration: number;
     type: 'consultation' | 'vaccination' | 'surgery' | 'follow-up' | 'emergency';
     status: 'scheduled' | 'arrived' | 'in-progress' | 'completed' | 'cancelled';
     veterinarian: string;
     notes?: string;
+    cancellationReason?: string;
 }
 
 // Inventory Types
@@ -85,6 +97,16 @@ export interface Product {
     price: number;
     unit: string;
     supplier: string;
+    expiryDate?: string;
+}
+
+export interface StockMovement {
+    id: string;
+    productId: string;
+    delta: number;
+    reason: 'sale' | 'reception' | 'loss' | 'counter_sale';
+    date: string;
+    note?: string;
 }
 
 // Billing Types
@@ -94,6 +116,14 @@ export interface InvoiceLine {
     quantity: number;
     unitPrice: number;
     total: number;
+}
+
+export interface Payment {
+    id: string;
+    invoiceId: string;
+    amount: number;
+    method: 'card' | 'cash' | 'check' | 'transfer';
+    date: string;
 }
 
 export interface Invoice {
@@ -109,6 +139,7 @@ export interface Invoice {
     tax: number;
     total: number;
     status: 'paid' | 'pending' | 'overdue' | 'partial';
+    payments: Payment[];
     paymentPlan?: PaymentPlan;
 }
 
@@ -119,6 +150,16 @@ export interface PaymentPlan {
     nextPaymentDate: string;
 }
 
+// Activity Log
+export interface ActivityLogEntry {
+    id: string;
+    action: string;
+    entity: string;
+    entityId: string;
+    timestamp: string;
+    userId: string;
+}
+
 // Dashboard Types
 export interface KPI {
     label: string;
@@ -126,6 +167,7 @@ export interface KPI {
     change?: number;
     changeType?: 'increase' | 'decrease';
     icon: string;
+    link?: string;
 }
 
 export interface RevenueData {
