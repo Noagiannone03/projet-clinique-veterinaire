@@ -36,11 +36,39 @@ function App() {
                                         }
                                     />
 
-                                    {/* All roles */}
-                                    <Route path="/clinic" element={<ClinicDashboard />} />
-                                    <Route path="/patients" element={<Patients />} />
-                                    <Route path="/patients/:id" element={<PatientDetail />} />
-                                    <Route path="/appointments" element={<Appointments />} />
+                                    {/* Vet + Assistant clinical pages */}
+                                    <Route
+                                        path="/clinic"
+                                        element={
+                                            <RoleGuard allowedRoles={['veterinarian', 'assistant']}>
+                                                <ClinicDashboard />
+                                            </RoleGuard>
+                                        }
+                                    />
+                                    <Route
+                                        path="/patients"
+                                        element={
+                                            <RoleGuard allowedRoles={['veterinarian', 'assistant']}>
+                                                <Patients />
+                                            </RoleGuard>
+                                        }
+                                    />
+                                    <Route
+                                        path="/patients/:id"
+                                        element={
+                                            <RoleGuard allowedRoles={['veterinarian', 'assistant']}>
+                                                <PatientDetail />
+                                            </RoleGuard>
+                                        }
+                                    />
+                                    <Route
+                                        path="/appointments"
+                                        element={
+                                            <RoleGuard allowedRoles={['veterinarian', 'assistant']}>
+                                                <Appointments />
+                                            </RoleGuard>
+                                        }
+                                    />
 
                                     {/* Vet + Assistant only */}
                                     <Route

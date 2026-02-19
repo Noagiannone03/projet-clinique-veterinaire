@@ -84,7 +84,7 @@ export const paymentSchema = z.object({
 
 export const stockAdjustmentSchema = z.object({
     delta: z.coerce.number().refine((v) => v !== 0, 'La quantite ne peut pas etre zero'),
-    reason: z.enum(['sale', 'reception', 'loss', 'counter_sale'], { required_error: 'Raison requise' }),
+    reason: z.enum(['sale', 'reception', 'loss', 'counter_sale', 'prescription'], { required_error: 'Raison requise' }),
     note: z.string().optional(),
 });
 

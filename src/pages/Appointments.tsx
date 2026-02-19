@@ -3,7 +3,7 @@ import { Header } from '../components/layout';
 import { Button, Badge } from '../components/ui';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useToast } from '../components/ui/Toast';
-import { AppointmentForm } from '../components/forms';
+import { AppointmentForm, InvoiceForm } from '../components/forms';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -11,12 +11,12 @@ import listPlugin from '@fullcalendar/list';
 import interactionPlugin, { type EventResizeDoneArg } from '@fullcalendar/interaction';
 import frLocale from '@fullcalendar/core/locales/fr';
 import type { DateSelectArg, EventClickArg, EventDropArg } from '@fullcalendar/core';
-import { Plus, Search, Stethoscope, CalendarClock, X } from 'lucide-react';
+import { Plus, Search, Stethoscope, CalendarClock, X, Receipt } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Appointment } from '../types';
 import { useClinicData } from '../context/clinicState';
 import { useAuth } from '../context/AuthContext';
-import type { AppointmentFormData } from '../schemas';
+import type { AppointmentFormData, InvoiceFormData } from '../schemas';
 
 const statusLabel: Record<Appointment['status'], string> = {
     scheduled: 'Planifie', arrived: 'Arrive', 'in-progress': 'En cours', completed: 'Termine', cancelled: 'Annule',
@@ -26,7 +26,7 @@ const typeLabel: Record<Appointment['type'], string> = {
 };
 
 export function Appointments() {
-    const { patients, appointments, addAppointment, updateAppointmentStatus, updateAppointmentSchedule, updateAppointment, cancelAppointment } = useClinicData();
+    const { patients, appointments, addAppointment, updateAppointmentStatus, updateAppointmentSchedule, updateAppointment, cancelAppointment, addInvoice, invoices } = useClinicData();
     const { role } = useAuth();
     const toast = useToast();
 
@@ -39,6 +39,8 @@ export function Appointments() {
     const [showCancelDialog, setShowCancelDialog] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
     const [pendingMove, setPendingMove] = useState<{ id: string; date: string; time: string; duration: number; revert: () => void; description: string } | null>(null);
+    const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+    const [invoicePatientId, setInvoicePatientId] = useState<string | undefined>(undefined);
 
     const filteredAppointments = useMemo(() => {
         return appointments.filter((a) => {
@@ -140,6 +142,30 @@ export function Appointments() {
         setCancelReason('');
     };
 
+    // Check which completed appointments don't have an invoice yet
+    const invoicedPatientDates = new Set(invoices.map((inv) => `${inv.patientId}-${inv.date}`));
+    const unbilledCompleted = appointments.filter(
+        (a) => a.status === 'completed' && !invoicedPatientDates.has(`${a.patientId}-${a.date}`)
+    );
+
+    const handleInvoiceFromRDV = (apt: Appointment) => {
+        setInvoicePatientId(apt.patientId);
+        setShowInvoiceForm(true);
+    };
+
+    const handleNewInvoice = (data: InvoiceFormData) => {
+        addInvoice({
+            patientId: data.patientId,
+            patientName: '',
+            ownerName: '',
+            date: new Date().toISOString().split('T')[0],
+            dueDate: data.dueDate,
+            lines: data.lines,
+        });
+        toast.success('Facture creee avec succes');
+        setShowInvoiceForm(false);
+    };
+
     return (
         <div>
             <Header title="Rendez-vous" subtitle="Planning et gestion des rendez-vous" />
@@ -151,6 +177,24 @@ export function Appointments() {
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4"><p className="text-sm text-slate-500">En cours</p><p className="text-2xl font-bold text-amber-600">{stats.inProgress}</p></div>
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4"><p className="text-sm text-slate-500">Urgences</p><p className="text-2xl font-bold text-rose-600">{stats.emergency}</p></div>
                 </div>
+
+                {/* Unbilled completed appointments banner */}
+                {role !== 'director' && unbilledCompleted.length > 0 && (
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Receipt className="w-5 h-5 text-amber-600" />
+                                <div>
+                                    <p className="text-sm font-semibold text-amber-900">{unbilledCompleted.length} RDV termine(s) sans facture</p>
+                                    <p className="text-xs text-amber-700 mt-0.5">{unbilledCompleted.map((a) => a.patientName).join(', ')}</p>
+                                </div>
+                            </div>
+                            <Button size="sm" onClick={() => { setInvoicePatientId(unbilledCompleted[0].patientId); setShowInvoiceForm(true); }}>
+                                Facturer
+                            </Button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Legend */}
                 <div className="flex flex-wrap gap-3 text-xs">
@@ -244,6 +288,19 @@ export function Appointments() {
                                             )}
                                         </div>
                                     )}
+                                    {/* Facturer button for completed appointments */}
+                                    {selectedAppointment.status === 'completed' && role !== 'director' && (
+                                        <div className="pt-2 border-t border-slate-100">
+                                            <Button
+                                                size="sm"
+                                                className="w-full"
+                                                icon={<Receipt className="w-4 h-4" />}
+                                                onClick={() => handleInvoiceFromRDV(selectedAppointment)}
+                                            >
+                                                Facturer ce RDV
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <p className="text-sm text-slate-500">Cliquez sur un evenement pour voir les details</p>
@@ -302,6 +359,13 @@ export function Appointments() {
                 message={pendingMove?.description || ''}
                 confirmLabel="Deplacer"
                 variant="warning"
+            />
+
+            <InvoiceForm
+                isOpen={showInvoiceForm}
+                onClose={() => setShowInvoiceForm(false)}
+                onSubmit={handleNewInvoice}
+                defaultPatientId={invoicePatientId}
             />
         </div>
     );

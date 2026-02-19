@@ -7,7 +7,6 @@ import {
     Receipt,
     Settings,
     LogOut,
-    Stethoscope,
     BarChart3,
     ChevronLeft,
     ChevronRight,
@@ -18,6 +17,7 @@ import { useSidebar } from '../../context/SidebarContext';
 import { useState } from 'react';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import type { Role } from '../../types';
+import clinicLogo from '../../assets/logoclinique copie.png';
 
 interface NavItem {
     to: string;
@@ -28,9 +28,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
     { to: '/', icon: BarChart3, label: 'Dashboard Business', roles: ['director'] },
-    { to: '/clinic', icon: LayoutDashboard, label: 'Dashboard Clinique', roles: ['director', 'veterinarian', 'assistant'] },
-    { to: '/patients', icon: PawPrint, label: 'Patients', roles: ['director', 'veterinarian', 'assistant'] },
-    { to: '/appointments', icon: Calendar, label: 'Rendez-vous', roles: ['director', 'veterinarian', 'assistant'] },
+    { to: '/clinic', icon: LayoutDashboard, label: 'Tableau de bord', roles: ['veterinarian', 'assistant'] },
+    { to: '/patients', icon: PawPrint, label: 'Patients', roles: ['veterinarian', 'assistant'] },
+    { to: '/appointments', icon: Calendar, label: 'Rendez-vous', roles: ['veterinarian', 'assistant'] },
     { to: '/inventory', icon: Package, label: 'Inventaire', roles: ['veterinarian', 'assistant'] },
     { to: '/billing', icon: Receipt, label: 'Facturation', roles: ['director', 'veterinarian', 'assistant'] },
 ];
@@ -48,22 +48,19 @@ export function Sidebar() {
             {/* Desktop Sidebar */}
             {showDesktop && (
                 <aside
-                    className={`fixed left-0 top-0 h-screen bg-white border-r border-slate-200 flex-col z-40 transition-all duration-300 hidden md:flex ${
-                        isExpanded ? 'w-64' : 'w-[56px]'
-                    }`}
+                    className={`fixed left-0 top-0 h-screen bg-white border-r border-slate-200 flex-col z-40 transition-all duration-300 hidden md:flex ${isExpanded ? 'w-64' : 'w-[56px]'
+                        }`}
                 >
                     {/* Logo */}
-                    <div className={`border-b border-slate-200 ${isExpanded ? 'p-6' : 'p-3'}`}>
+                    <div className={`border-b border-slate-200 ${isExpanded ? 'p-4' : 'p-2'}`}>
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                                <Stethoscope className="w-5 h-5 text-white" />
+                            <div className={`${isExpanded ? 'h-16 w-44' : 'h-12 w-12 rounded-lg'} overflow-hidden flex-shrink-0`}>
+                                <img
+                                    src={clinicLogo}
+                                    alt="Clinique des Etangs"
+                                    className={`h-full w-full object-cover ${isExpanded ? 'object-center scale-125' : 'object-left scale-140'}`}
+                                />
                             </div>
-                            {isExpanded && (
-                                <div>
-                                    <h1 className="font-bold text-slate-900 text-base leading-tight">VetCare</h1>
-                                    <p className="text-xs text-slate-500">Clinique des Etangs</p>
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -75,12 +72,10 @@ export function Sidebar() {
                                 to={item.to}
                                 end={item.to === '/' || item.to === '/clinic'}
                                 className={({ isActive }) =>
-                                    `flex items-center gap-3 rounded-lg transition-colors ${
-                                        isExpanded ? 'px-3 py-2.5' : 'px-2 py-2.5 justify-center'
-                                    } ${
-                                        isActive
-                                            ? 'bg-primary-50 text-primary-700 font-medium'
-                                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                                    `flex items-center gap-3 rounded-lg transition-colors ${isExpanded ? 'px-3 py-2.5' : 'px-2 py-2.5 justify-center'
+                                    } ${isActive
+                                        ? 'bg-primary-50 text-primary-700 font-medium'
+                                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                                     }`
                                 }
                                 title={isCollapsed ? item.label : undefined}
@@ -101,9 +96,8 @@ export function Sidebar() {
                         )}
                         <NavLink
                             to="/settings"
-                            className={`flex items-center gap-3 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors ${
-                                isExpanded ? 'px-3 py-2.5' : 'px-2 py-2.5 justify-center'
-                            }`}
+                            className={`flex items-center gap-3 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors ${isExpanded ? 'px-3 py-2.5' : 'px-2 py-2.5 justify-center'
+                                }`}
                             title={isCollapsed ? 'Parametres' : undefined}
                         >
                             <Settings className="w-5 h-5 flex-shrink-0" />
@@ -111,9 +105,8 @@ export function Sidebar() {
                         </NavLink>
                         <button
                             onClick={() => setShowLogoutConfirm(true)}
-                            className={`w-full flex items-center gap-3 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors ${
-                                isExpanded ? 'px-3 py-2.5' : 'px-2 py-2.5 justify-center'
-                            }`}
+                            className={`w-full flex items-center gap-3 rounded-lg text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors ${isExpanded ? 'px-3 py-2.5' : 'px-2 py-2.5 justify-center'
+                                }`}
                             title={isCollapsed ? 'Deconnexion' : undefined}
                         >
                             <LogOut className="w-5 h-5 flex-shrink-0" />
@@ -123,9 +116,8 @@ export function Sidebar() {
                         {/* Collapse toggle */}
                         <button
                             onClick={toggle}
-                            className={`w-full flex items-center gap-3 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors mt-2 ${
-                                isExpanded ? 'px-3 py-2' : 'px-2 py-2 justify-center'
-                            }`}
+                            className={`w-full flex items-center gap-3 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors mt-2 ${isExpanded ? 'px-3 py-2' : 'px-2 py-2 justify-center'
+                                }`}
                         >
                             {isExpanded ? (
                                 <>
@@ -147,12 +139,12 @@ export function Sidebar() {
                     <aside className="fixed left-0 top-0 h-screen w-72 bg-white shadow-xl z-10 animate-fade-in flex flex-col">
                         <div className="flex items-center justify-between p-4 border-b border-slate-200">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center">
-                                    <Stethoscope className="w-5 h-5 text-white" />
-                                </div>
-                                <div>
-                                    <h1 className="font-bold text-slate-900 text-base leading-tight">VetCare</h1>
-                                    <p className="text-xs text-slate-500">Clinique des Etangs</p>
+                                <div className="h-14 w-40 overflow-hidden flex-shrink-0">
+                                    <img
+                                        src={clinicLogo}
+                                        alt="Clinique des Etangs"
+                                        className="h-full w-full object-cover object-center scale-125"
+                                    />
                                 </div>
                             </div>
                             <button onClick={closeMobile} className="p-2 rounded-lg hover:bg-slate-100">
@@ -168,10 +160,9 @@ export function Sidebar() {
                                     end={item.to === '/' || item.to === '/clinic'}
                                     onClick={closeMobile}
                                     className={({ isActive }) =>
-                                        `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                                            isActive
-                                                ? 'bg-primary-50 text-primary-700 font-medium'
-                                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                                        `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${isActive
+                                            ? 'bg-primary-50 text-primary-700 font-medium'
+                                            : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                                         }`
                                     }
                                 >

@@ -1,12 +1,11 @@
 import { Header } from '../components/layout';
 import { StatsCard } from '../components/ui';
 import {
-    DollarSign,
+    Euro,
     Users,
     Calendar,
     AlertTriangle,
     TrendingUp,
-    Receipt,
 } from 'lucide-react';
 import {
     AreaChart,
@@ -73,7 +72,7 @@ export function DirectorDashboard() {
                         value={`${totalRevenue.toFixed(0)} EUR`}
                         change={12.5}
                         changeType="increase"
-                        icon={<DollarSign className="w-6 h-6" />}
+                        icon={<Euro className="w-6 h-6" />}
                         link="/billing"
                     />
                     <StatsCard

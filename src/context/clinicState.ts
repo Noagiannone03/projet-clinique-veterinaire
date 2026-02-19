@@ -50,7 +50,7 @@ export interface ClinicContextValue {
     adjustProductStock: (productId: string, delta: number, reason?: StockMovement['reason'], note?: string) => void;
 
     // Invoices CRUD
-    addInvoice: (invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total'> & { lines: { description: string; quantity: number; unitPrice: number }[] }) => Invoice;
+    addInvoice: (invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total' | 'lines'> & { lines: { description: string; quantity: number; unitPrice: number }[] }) => Invoice;
     updateInvoice: (id: string, data: Partial<Invoice>) => void;
     recordPayment: (invoiceId: string, payment: Omit<Payment, 'id' | 'invoiceId'>) => void;
     recordInvoicePayment: (invoiceId: string) => void;

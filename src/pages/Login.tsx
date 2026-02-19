@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Stethoscope, Briefcase, Headset } from 'lucide-react';
 import type { Role } from '../types';
+import clinicLogo from '../assets/logoclinique copie.png';
 
 const roleIcons: Record<Role, React.ReactNode> = {
     director: <Briefcase className="w-8 h-8" />,
@@ -49,10 +50,13 @@ export function Login() {
         <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-sky-50 flex items-center justify-center p-4">
             <div className="w-full max-w-3xl">
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl mb-4">
-                        <Stethoscope className="w-9 h-9 text-white" />
+                    <div className="mx-auto h-24 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm mb-4">
+                        <img
+                            src={clinicLogo}
+                            alt="Clinique des Etangs"
+                            className="h-full w-full object-cover object-center scale-125"
+                        />
                     </div>
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">VetCare</h1>
                     <p className="text-lg text-slate-500">Clinique des Etangs - Villars-les-Dombes</p>
                     <p className="text-sm text-slate-400 mt-2">Selectionnez votre profil pour acceder a l'application</p>
                 </div>

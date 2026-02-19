@@ -258,7 +258,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     }, []);
 
     // ---- INVOICES ----
-    const addInvoice = useCallback((data: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total'> & { lines: { description: string; quantity: number; unitPrice: number }[] }): Invoice => {
+    const addInvoice = useCallback((data: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total' | 'lines'> & { lines: { description: string; quantity: number; unitPrice: number }[] }): Invoice => {
         const lines = data.lines.map((l) => ({
             id: generateId('line'),
             description: l.description,

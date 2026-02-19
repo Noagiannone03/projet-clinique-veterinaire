@@ -104,7 +104,7 @@ export interface StockMovement {
     id: string;
     productId: string;
     delta: number;
-    reason: 'sale' | 'reception' | 'loss' | 'counter_sale';
+    reason: 'sale' | 'reception' | 'loss' | 'counter_sale' | 'prescription';
     date: string;
     note?: string;
 }
