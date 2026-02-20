@@ -21,6 +21,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useClinicData } from '../context/clinicState';
 import { useAuth } from '../context/AuthContext';
+import { InvoiceForm } from '../components/forms/InvoiceForm';
+import type { InvoiceFormData } from '../schemas';
 
 type StatusFilter = 'all' | 'pending' | 'overdue' | 'partial' | 'paid';
 
@@ -134,10 +136,11 @@ function InvoiceLinesTable({ title, lines, emptyLabel }: InvoiceLinesTableProps)
 interface InvoiceRowProps {
     invoice: Invoice;
     onRecordPayment: (invoice: Invoice) => void;
+    onEditInvoice?: (invoice: Invoice) => void;
     canManage: boolean;
 }
 
-function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
+function InvoiceRow({ invoice, onRecordPayment, onEditInvoice, canManage }: InvoiceRowProps) {
     const [expanded, setExpanded] = useState(false);
     const config = statusConfig[invoice.status];
     const amountPaid = useMemo(() => getInvoicePaidAmount(invoice), [invoice]);
@@ -239,17 +242,29 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
                 <td className="py-4 px-5">
                     <div className="flex items-center justify-end gap-2">
                         {invoice.status !== 'paid' && canManage && (
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onRecordPayment(invoice);
-                                }}
-                                className="inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-primary-700"
-                            >
-                                <CreditCard className="h-3.5 w-3.5" />
-                                Encaisser
-                            </button>
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onRecordPayment(invoice);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-primary-700"
+                                >
+                                    <CreditCard className="h-3.5 w-3.5" />
+                                    Encaisser
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onEditInvoice) onEditInvoice(invoice);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-50 hover:text-primary-600"
+                                >
+                                    Modifier
+                                </button>
+                            </>
                         )}
                         <button
                             type="button"
@@ -410,13 +425,14 @@ function InvoiceRow({ invoice, onRecordPayment, canManage }: InvoiceRowProps) {
 }
 
 export function Billing() {
-    const { invoices, recordPayment } = useClinicData();
+    const { invoices, recordPayment, updateInvoiceData } = useClinicData();
     const { role } = useAuth();
     const toast = useToast();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
+    const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
 
     const canManage = role === 'assistant' || role === 'veterinarian';
 
@@ -628,20 +644,18 @@ export function Billing() {
                                             key={key}
                                             type="button"
                                             onClick={() => setStatusFilter(key)}
-                                            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                                                isSelected
-                                                    ? isRed
-                                                        ? 'border-rose-300 bg-rose-50 text-rose-700'
-                                                        : 'border-primary-300 bg-primary-50 text-primary-700'
-                                                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-                                            }`}
+                                            className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${isSelected
+                                                ? isRed
+                                                    ? 'border-rose-300 bg-rose-50 text-rose-700'
+                                                    : 'border-primary-300 bg-primary-50 text-primary-700'
+                                                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                                                }`}
                                         >
                                             {label}
-                                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                                                isSelected
-                                                    ? isRed ? 'bg-rose-100 text-rose-700' : 'bg-primary-100 text-primary-700'
-                                                    : 'bg-slate-100 text-slate-500'
-                                            }`}>
+                                            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isSelected
+                                                ? isRed ? 'bg-rose-100 text-rose-700' : 'bg-primary-100 text-primary-700'
+                                                : 'bg-slate-100 text-slate-500'
+                                                }`}>
                                                 {count}
                                             </span>
                                         </button>
@@ -689,6 +703,7 @@ export function Billing() {
                                             key={invoice.id}
                                             invoice={invoice}
                                             onRecordPayment={setPayingInvoice}
+                                            onEditInvoice={setEditingInvoice}
                                             canManage={canManage}
                                         />
                                     ))}
@@ -706,6 +721,20 @@ export function Billing() {
                     onSubmit={handlePayment}
                     invoiceNumber={payingInvoice.invoiceNumber}
                     remainingAmount={payingRemainingAmount}
+                />
+            )}
+
+            {editingInvoice && (
+                <InvoiceForm
+                    isOpen={!!editingInvoice}
+                    onClose={() => setEditingInvoice(null)}
+                    onSubmit={(data: InvoiceFormData) => {
+                        updateInvoiceData(editingInvoice.id, data.lines);
+                        toast.success('Facture modifiée avec succès');
+                        setEditingInvoice(null);
+                    }}
+                    defaultPatientId={editingInvoice.patientId}
+                    defaultLines={editingInvoice.lines as any}
                 />
             )}
         </div>

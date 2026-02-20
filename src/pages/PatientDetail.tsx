@@ -266,7 +266,16 @@ export function PatientDetail() {
                                                 {record.notes && <p className="text-sm text-slate-500 mt-1 italic">{record.notes}</p>}
                                                 {record.prescriptions.length > 0 && (
                                                     <div className="mt-3 p-3 bg-slate-50 rounded-lg">
-                                                        <p className="text-xs font-medium text-slate-500 uppercase mb-2">Prescriptions</p>
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <p className="text-xs font-medium text-slate-500 uppercase">Prescriptions</p>
+                                                            <button
+                                                                onClick={() => window.print()}
+                                                                className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                                                            >
+                                                                <Printer className="w-3.5 h-3.5" />
+                                                                Imprimer l'ordonnance
+                                                            </button>
+                                                        </div>
                                                         {record.prescriptions.map((p) => (
                                                             <div key={p.id} className="text-sm"><span className="font-medium text-slate-900">{p.medication}</span><span className="text-slate-500"> - {p.dosage}, {p.frequency}, {p.duration}</span></div>
                                                         ))}

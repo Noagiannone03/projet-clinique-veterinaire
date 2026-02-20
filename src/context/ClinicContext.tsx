@@ -370,6 +370,36 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         logActivity('update', 'invoice', id);
     }, [logActivity]);
 
+    const updateInvoiceData = useCallback((id: string, newLines: InvoiceLineInput[]) => {
+        setInvoices((prev) =>
+            prev.map((invoice) => {
+                if (invoice.id !== id) return invoice;
+
+                const lines = newLines.map((l) => ({
+                    id: generateId('line'),
+                    description: l.description,
+                    quantity: l.quantity,
+                    unitPrice: l.unitPrice,
+                    total: l.quantity * l.unitPrice,
+                    lineType: l.lineType ?? 'service',
+                    productId: l.productId,
+                }));
+                const subtotal = lines.reduce((sum, l) => sum + l.total, 0);
+                const tax = Math.round(subtotal * 0.2 * 100) / 100;
+                const total = Math.round((subtotal + tax) * 100) / 100;
+
+                return normalizeInvoice({
+                    ...invoice,
+                    lines,
+                    subtotal,
+                    tax,
+                    total,
+                });
+            })
+        );
+        logActivity('update', 'invoice', id);
+    }, [logActivity]);
+
     const recordPayment = useCallback((invoiceId: string, paymentData: Omit<Payment, 'id' | 'invoiceId'>) => {
         setInvoices((prev) =>
             prev.map((inv) => {
@@ -456,6 +486,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             adjustProductStock,
             addInvoice,
             updateInvoice,
+            updateInvoiceData,
             recordPayment,
             recordInvoicePayment,
         }),
@@ -464,7 +495,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             addPatient, updatePatient, deletePatient, addMedicalRecord, addVaccination, addAlert, removeAlert,
             addAppointment, updateAppointment, deleteAppointment, updateAppointmentStatus, updateAppointmentSchedule, cancelAppointment,
             addProduct, updateProduct, deleteProduct, adjustProductStock,
-            addInvoice, updateInvoice, recordPayment, recordInvoicePayment,
+            addInvoice, updateInvoice, updateInvoiceData, recordPayment, recordInvoicePayment,
         ]
     );
 

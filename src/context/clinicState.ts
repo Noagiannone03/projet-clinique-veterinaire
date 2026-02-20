@@ -68,6 +68,7 @@ export interface ClinicContextValue {
         }
     ) => Invoice;
     updateInvoice: (id: string, data: Partial<Invoice>) => void;
+    updateInvoiceData: (id: string, lines: InvoiceLineInput[]) => void;
     recordPayment: (invoiceId: string, payment: Omit<Payment, 'id' | 'invoiceId'>) => void;
     recordInvoicePayment: (invoiceId: string) => void;
 }
