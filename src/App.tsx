@@ -80,8 +80,15 @@ function App() {
                                         }
                                     />
 
-                                    {/* All roles */}
-                                    <Route path="/billing" element={<Billing />} />
+                                    {/* Director + Assistant only */}
+                                    <Route
+                                        path="/billing"
+                                        element={
+                                            <RoleGuard allowedRoles={['director', 'assistant']}>
+                                                <Billing />
+                                            </RoleGuard>
+                                        }
+                                    />
 
                                     <Route path="*" element={<Navigate to="/" replace />} />
                                 </Route>

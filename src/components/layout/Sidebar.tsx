@@ -32,7 +32,7 @@ const navItems: NavItem[] = [
     { to: '/patients', icon: PawPrint, label: 'Patients', roles: ['veterinarian', 'assistant'] },
     { to: '/appointments', icon: Calendar, label: 'Rendez-vous', roles: ['veterinarian', 'assistant'] },
     { to: '/inventory', icon: Package, label: 'Inventaire', roles: ['veterinarian', 'assistant'] },
-    { to: '/billing', icon: Receipt, label: 'Facturation', roles: ['director', 'veterinarian', 'assistant'] },
+    { to: '/billing', icon: Receipt, label: 'Facturation', roles: ['director', 'assistant'] },
 ];
 
 export function Sidebar() {

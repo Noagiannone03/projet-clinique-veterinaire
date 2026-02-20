@@ -245,28 +245,19 @@ export function Appointments() {
         });
     };
 
-    /* ── Actions ── */
+    /* ── Actions (role-aware) ── */
     const getActions = (apt: Appointment): AppointmentAction[] => {
         const a: AppointmentAction[] = [];
+
+        if (role === 'veterinarian') {
+            // Vet: calendar is read-only planning overview — no status actions here
+            // Consultations are managed from the dashboard
+            return a;
+        }
+
+        // Assistant: manage arrivals & billing, but NOT consultations
         if (apt.status === 'scheduled')
             a.push({ label: 'Marquer arrivé', icon: UserCheck, variant: 'primary', onClick: () => { updateAppointmentStatus(apt.id, 'arrived'); toast.success('Patient arrivé'); } });
-        if (apt.status === 'arrived')
-            a.push({ label: 'Démarrer la consultation', icon: Stethoscope, variant: 'primary', onClick: () => { updateAppointmentStatus(apt.id, 'in-progress'); toast.success('Consultation démarrée'); } });
-        if (apt.status === 'in-progress')
-            a.push({
-                label: 'Terminer',
-                icon: CheckCircle,
-                variant: 'success',
-                onClick: () => {
-                    updateAppointmentStatus(apt.id, 'completed');
-                    const invoice = createAutoInvoiceFromAppointment(apt);
-                    if (invoice) {
-                        toast.success(`Consultation terminee · facture ${invoice.invoiceNumber} generee`);
-                    } else {
-                        toast.success('Consultation terminee');
-                    }
-                },
-            });
         if (apt.status === 'completed')
             a.push({ label: 'Facturation', icon: ArrowRight, variant: 'primary', onClick: () => navigate('/billing') });
         return a;
@@ -397,8 +388,8 @@ export function Appointments() {
                     <SearchInput value={searchQuery} onChange={setSearchQuery} placeholder="Rechercher…" className="w-full" />
                 </div>
 
-                {/* Nouveau RDV */}
-                {role !== 'director' && (
+                {/* Nouveau RDV — assistant only */}
+                {role === 'assistant' && (
                     <Button icon={<Plus className="h-4 w-4" />} onClick={() => setShowNewAppointment(true)} className="flex-shrink-0">
                         <span className="hidden sm:inline">Nouveau RDV</span>
                     </Button>
@@ -579,8 +570,8 @@ export function Appointments() {
                                     </button>
                                 ))}
 
-                                {/* Modifier / Annuler */}
-                                {role !== 'director' && selectedAppt.status !== 'completed' && selectedAppt.status !== 'cancelled' && (
+                                {/* Modifier / Annuler — assistant only */}
+                                {role === 'assistant' && selectedAppt.status !== 'completed' && selectedAppt.status !== 'cancelled' && (
                                     <div className="flex gap-1.5">
                                         <button type="button" onClick={() => setShowEditAppointment(true)}
                                             className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-100 transition">
@@ -607,8 +598,8 @@ export function Appointments() {
                             initialView={view}
                             headerToolbar={false}
                             height="100%"
-                            editable={role !== 'director'}
-                            selectable={role !== 'director'}
+                            editable={role === 'assistant'}
+                            selectable={role === 'assistant'}
                             selectMirror
                             dayMaxEvents
                             weekends={false}

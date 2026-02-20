@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Header } from '../components/layout';
-import { Badge, Button } from '../components/ui';
+import { Badge, Button, Tabs } from '../components/ui';
 import {
     Plus,
     Receipt,
@@ -17,6 +17,9 @@ import {
     Calendar,
     Play,
     ChevronRight,
+    Home,
+    Filter,
+    Users,
 } from 'lucide-react';
 import { useClinicData } from '../context/clinicState';
 import { useAuth } from '../context/AuthContext';
@@ -68,6 +71,105 @@ const stepConfig: { key: PipelineStatus; label: string; icon: typeof Clock; colo
     { key: 'in-progress', label: 'En cours', icon: Stethoscope, color: 'text-amber-600', bg: 'bg-amber-500' },
     { key: 'completed', label: 'Terminé', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-500' },
 ];
+
+// ─── Assistant Billing Tab (sub-component) ──────────────────
+function AssistantBillingTab({ invoices, navigate }: { invoices: import('../types').Invoice[]; navigate: (path: string) => void }) {
+    const [billingFilter, setBillingFilter] = useState<'today' | 'pending' | 'overdue'>('today');
+
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+
+    const todayInvoices = invoices.filter((inv) => inv.date === todayStr);
+    const pendingInvoices = invoices.filter((inv) => inv.status === 'pending' || inv.status === 'partial');
+    const overdueInvoices = invoices.filter((inv) => inv.status === 'overdue');
+
+    const totalToCollect = todayInvoices
+        .filter((inv) => inv.status !== 'paid')
+        .reduce((sum, inv) => sum + inv.total - inv.payments.reduce((s, p) => s + p.amount, 0), 0);
+
+    const filteredInvoices =
+        billingFilter === 'today' ? todayInvoices :
+        billingFilter === 'pending' ? pendingInvoices :
+        overdueInvoices;
+
+    const statusLabel: Record<string, { label: string; color: string }> = {
+        paid: { label: 'Payee', color: 'bg-emerald-100 text-emerald-700' },
+        pending: { label: 'En attente', color: 'bg-orange-100 text-orange-700' },
+        overdue: { label: 'En retard', color: 'bg-red-100 text-red-700' },
+        partial: { label: 'Partiel', color: 'bg-amber-100 text-amber-700' },
+    };
+
+    return (
+        <div className="space-y-5">
+            {/* Counters */}
+            <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 rounded-xl bg-primary-50 border border-primary-100">
+                    <p className="text-xs text-primary-600 font-medium">A encaisser aujourd'hui</p>
+                    <p className="text-2xl font-bold text-primary-700">{totalToCollect.toFixed(2)} EUR</p>
+                </div>
+                <div className="p-4 rounded-xl bg-red-50 border border-red-100">
+                    <p className="text-xs text-red-600 font-medium">Factures en retard</p>
+                    <p className="text-2xl font-bold text-red-700">{overdueInvoices.length}</p>
+                </div>
+            </div>
+
+            {/* Filters */}
+            <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-400" />
+                {([
+                    { key: 'today' as const, label: 'Aujourd\'hui', count: todayInvoices.length },
+                    { key: 'pending' as const, label: 'En attente', count: pendingInvoices.length },
+                    { key: 'overdue' as const, label: 'En retard', count: overdueInvoices.length },
+                ]).map((f) => (
+                    <button
+                        key={f.key}
+                        onClick={() => setBillingFilter(f.key)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                            billingFilter === f.key
+                                ? 'bg-primary-100 text-primary-700'
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                    >
+                        {f.label} ({f.count})
+                    </button>
+                ))}
+            </div>
+
+            {/* Invoice list */}
+            {filteredInvoices.length === 0 ? (
+                <div className="text-center py-10">
+                    <Receipt className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm text-slate-400">Aucune facture dans cette categorie</p>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {filteredInvoices.map((inv) => (
+                        <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-white hover:shadow-sm transition-shadow">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-semibold text-slate-900">{inv.invoiceNumber}</p>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusLabel[inv.status]?.color || 'bg-slate-100 text-slate-600'}`}>
+                                            {statusLabel[inv.status]?.label || inv.status}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500">{inv.patientName} · {inv.ownerName}</p>
+                                </div>
+                            </div>
+                            <p className="text-sm font-bold text-slate-900 shrink-0">{inv.total.toFixed(2)} EUR</p>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Link to full billing page */}
+            <div className="pt-2 text-center">
+                <button onClick={() => navigate('/billing')} className="text-sm text-primary-600 hover:text-primary-700 font-medium inline-flex items-center gap-1">
+                    Page facturation complete <ArrowRight className="w-3 h-3" />
+                </button>
+            </div>
+        </div>
+    );
+}
 
 // ─── Main Dashboard ──────────────────────────────────────────
 export function ClinicDashboard() {
@@ -242,46 +344,58 @@ export function ClinicDashboard() {
         ? patients.find((p) => p.id === consultingAppointment.patientId) : null;
 
     // ─── Shared: Appointment Timeline Card ───
-    const renderTimelineCard = (apt: Appointment, showVetActions: boolean) => {
+    // viewMode: 'vet' = vet actions only (start/resume consultation), 'assistant' = assistant actions (patient arrivé, facturation)
+    const renderTimelineCard = (apt: Appointment, viewMode: 'vet' | 'assistant') => {
         const alerts = patientAlertsMap.get(apt.patientId);
         const highAlerts = alerts?.filter((a) => a.severity === 'high') || [];
         const unbilled = isUnbilled(apt);
         const isActive = apt.status === 'in-progress';
 
-        // Determine single contextual action
+        // Determine single contextual action based on role
         let actionLabel = '';
         let actionColor = '';
         let actionIcon: React.ReactNode = null;
         let onAction = () => { };
+        let statusBadge: React.ReactNode = null;
 
-        if (apt.status === 'scheduled') {
-            actionLabel = 'Patient arrivé';
-            actionIcon = <UserCheck className="w-4 h-4" />;
-            actionColor = 'bg-secondary-600 hover:bg-secondary-700 text-white';
-            onAction = () => handleSimpleAdvance(apt);
-        } else if (apt.status === 'arrived' && showVetActions) {
-            actionLabel = 'Demarrer la consultation';
-            actionIcon = <Play className="w-4 h-4" />;
-            actionColor = 'bg-amber-500 hover:bg-amber-600 text-white';
-            onAction = () => handleStartConsultation(apt);
-        } else if (apt.status === 'in-progress' && showVetActions) {
-            actionLabel = 'Reprendre';
-            actionIcon = <Stethoscope className="w-4 h-4" />;
-            actionColor = 'bg-amber-500 hover:bg-amber-600 text-white';
-            onAction = () => handleContinueConsultation(apt);
-        } else if (apt.status === 'completed' && unbilled) {
-            actionLabel = 'Generer facture';
-            actionIcon = <Receipt className="w-4 h-4" />;
-            actionColor = 'bg-emerald-600 hover:bg-emerald-700 text-white';
-            onAction = () => {
-                const invoice = createAutoInvoiceFromAppointment(apt);
-                if (invoice) toast.success(`Facture ${invoice.invoiceNumber} generee`);
-            };
-        } else if (apt.status === 'completed') {
-            actionLabel = 'Voir facturation';
-            actionIcon = <ArrowRight className="w-4 h-4" />;
-            actionColor = 'bg-slate-100 hover:bg-slate-200 text-slate-700';
-            onAction = () => navigate('/billing');
+        if (viewMode === 'vet') {
+            // Vet: only consultation actions (start/resume). No "Patient arrivé", no billing.
+            if (apt.status === 'arrived') {
+                actionLabel = 'Demarrer la consultation';
+                actionIcon = <Play className="w-4 h-4" />;
+                actionColor = 'bg-amber-500 hover:bg-amber-600 text-white';
+                onAction = () => handleStartConsultation(apt);
+            } else if (apt.status === 'in-progress') {
+                actionLabel = 'Reprendre';
+                actionIcon = <Stethoscope className="w-4 h-4" />;
+                actionColor = 'bg-amber-500 hover:bg-amber-600 text-white';
+                onAction = () => handleContinueConsultation(apt);
+            } else if (apt.status === 'completed') {
+                statusBadge = <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold">Termine</span>;
+            }
+            // scheduled → no action for vet (just displays the appointment)
+        } else {
+            // Assistant: patient arrivé, billing, badges for in-progress
+            if (apt.status === 'scheduled') {
+                actionLabel = 'Patient arrive';
+                actionIcon = <UserCheck className="w-4 h-4" />;
+                actionColor = 'bg-secondary-600 hover:bg-secondary-700 text-white';
+                onAction = () => handleSimpleAdvance(apt);
+            } else if (apt.status === 'arrived') {
+                statusBadge = <span className="px-3 py-1.5 rounded-lg bg-secondary-50 text-secondary-700 text-xs font-semibold">En salle d'attente</span>;
+            } else if (apt.status === 'in-progress') {
+                statusBadge = <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-xs font-semibold"><span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />En consultation</span>;
+            } else if (apt.status === 'completed' && unbilled) {
+                actionLabel = 'Generer facture';
+                actionIcon = <Receipt className="w-4 h-4" />;
+                actionColor = 'bg-emerald-600 hover:bg-emerald-700 text-white';
+                onAction = () => {
+                    const invoice = createAutoInvoiceFromAppointment(apt);
+                    if (invoice) toast.success(`Facture ${invoice.invoiceNumber} generee`);
+                };
+            } else if (apt.status === 'completed') {
+                statusBadge = <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold">Facture</span>;
+            }
         }
 
         // Status dot color
@@ -350,8 +464,8 @@ export function ClinicDashboard() {
                             </div>
                         </div>
 
-                        {/* Right: single action */}
-                        {actionLabel && (
+                        {/* Right: single action or status badge */}
+                        {actionLabel ? (
                             <button
                                 onClick={onAction}
                                 className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${actionColor}`}
@@ -359,7 +473,9 @@ export function ClinicDashboard() {
                                 {actionIcon}
                                 <span className="hidden sm:inline">{actionLabel}</span>
                             </button>
-                        )}
+                        ) : statusBadge ? (
+                            <div className="shrink-0">{statusBadge}</div>
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -481,13 +597,8 @@ export function ClinicDashboard() {
                    ══════════════════════════════════════════════════════════ */}
                 {role === 'veterinarian' && (
                     <>
-                        {/* Top bar : stepper + new RDV */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex-1 w-full">{renderProgressStepper()}</div>
-                            <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowNewAppointment(true)}>
-                                Nouveau RDV
-                            </Button>
-                        </div>
+                        {/* Stepper only — no "Nouveau RDV" */}
+                        <div className="w-full">{renderProgressStepper()}</div>
 
                         {/* In-progress prominent card */}
                         {renderInProgressCard()}
@@ -495,21 +606,16 @@ export function ClinicDashboard() {
                         {/* Next up indicator */}
                         {renderNextUp()}
 
-                        {/* Timeline */}
+                        {/* Timeline — read-only, no calendar link */}
                         {todayAppointments.length > 0 ? (
                             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                                <div className="flex items-center justify-between mb-5">
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="w-5 h-5 text-primary-600" />
-                                        <h2 className="font-semibold text-slate-900">Ma journee</h2>
-                                        <Badge variant="neutral">{todayAppointments.length} RDV</Badge>
-                                    </div>
-                                    <button onClick={() => navigate('/appointments')} className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
-                                        Calendrier <ArrowRight className="w-3 h-3" />
-                                    </button>
+                                <div className="flex items-center gap-2 mb-5">
+                                    <Calendar className="w-5 h-5 text-primary-600" />
+                                    <h2 className="font-semibold text-slate-900">Ma journee</h2>
+                                    <Badge variant="neutral">{todayAppointments.length} RDV</Badge>
                                 </div>
                                 <div>
-                                    {todayAppointments.map((apt) => renderTimelineCard(apt, true))}
+                                    {todayAppointments.map((apt) => renderTimelineCard(apt, 'vet'))}
                                 </div>
                             </div>
                         ) : (
@@ -523,10 +629,20 @@ export function ClinicDashboard() {
                 )}
 
                 {/* ══════════════════════════════════════════════════════════
-                    ASSISTANT VIEW — "Poste d'accueil"
+                    ASSISTANT VIEW — "Poste d'accueil" with 3 tabs
                    ══════════════════════════════════════════════════════════ */}
                 {role === 'assistant' && (
                     <>
+                        {/* Quick actions */}
+                        <div className="flex items-center gap-2 justify-end">
+                            <Button variant="outline" icon={<ShoppingCart className="w-4 h-4" />} onClick={handleCounterSale}>
+                                Vente comptoir
+                            </Button>
+                            <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowNewAppointment(true)}>
+                                Nouveau RDV
+                            </Button>
+                        </div>
+
                         {/* Alerts banner */}
                         {(unpaidInvoices.length > 0 || lowStockProducts.length > 0) && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -557,72 +673,175 @@ export function ClinicDashboard() {
                             </div>
                         )}
 
-                        {/* Quick actions + stepper */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex-1 w-full">{renderProgressStepper()}</div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <Button variant="outline" icon={<ShoppingCart className="w-4 h-4" />} onClick={handleCounterSale}>
-                                    Vente comptoir
-                                </Button>
-                                <Button icon={<Plus className="w-4 h-4" />} onClick={() => setShowNewAppointment(true)}>
-                                    Nouveau RDV
-                                </Button>
-                            </div>
-                        </div>
+                        {/* Tabs */}
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <Tabs
+                                tabs={[
+                                    { key: 'accueil', label: 'Accueil', icon: <Home className="w-4 h-4" /> },
+                                    { key: 'planning', label: 'Planning du jour', icon: <Calendar className="w-4 h-4" />, count: todayAppointments.length },
+                                    { key: 'facturation', label: 'Facturation', icon: <Receipt className="w-4 h-4" />, count: unpaidInvoices.length || undefined },
+                                ]}
+                            >
+                                {(activeTab) => (
+                                    <div className="p-5">
+                                        {/* ─── TAB: Accueil ─── */}
+                                        {activeTab === 'accueil' && (
+                                            <div className="space-y-6">
+                                                {/* Salle d'attente */}
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Users className="w-5 h-5 text-secondary-600" />
+                                                        <h3 className="font-semibold text-slate-900">Salle d'attente</h3>
+                                                        <Badge variant="neutral">{counts.arrived}</Badge>
+                                                    </div>
+                                                    {counts.arrived === 0 ? (
+                                                        <div className="text-center py-8 rounded-xl bg-slate-50 border border-slate-100">
+                                                            <UserCheck className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                                                            <p className="text-sm text-slate-400">Aucun patient en attente</p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {todayAppointments.filter((a) => a.status === 'arrived').map((apt) => (
+                                                                <div key={apt.id} className="flex items-center justify-between p-3 rounded-xl border border-secondary-100 bg-secondary-50/50">
+                                                                    <div className="flex items-center gap-3 min-w-0">
+                                                                        <span className="text-sm font-bold text-slate-900">{apt.time}</span>
+                                                                        <span className="text-base">{speciesIcon[apt.species]}</span>
+                                                                        <div className="min-w-0">
+                                                                            <button onClick={() => navigate(`/patients/${apt.patientId}`)} className="text-sm font-semibold text-slate-900 hover:text-primary-600 transition-colors truncate">{apt.patientName}</button>
+                                                                            <p className="text-xs text-slate-500">{typeLabel[apt.type]} · {apt.veterinarian}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className="px-3 py-1.5 rounded-lg bg-secondary-100 text-secondary-700 text-xs font-semibold shrink-0">En attente</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
 
-                        {/* Planning timeline */}
-                        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                            <div className="flex items-center justify-between mb-5">
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="w-5 h-5 text-primary-600" />
-                                    <h2 className="font-semibold text-slate-900">Planning du jour</h2>
-                                    <Badge variant="neutral">{todayAppointments.length} RDV</Badge>
-                                </div>
-                                <button onClick={() => navigate('/appointments')} className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
-                                    Voir le calendrier <ArrowRight className="w-3 h-3" />
-                                </button>
-                            </div>
+                                                {/* Consultations en cours */}
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Stethoscope className="w-5 h-5 text-amber-600" />
+                                                        <h3 className="font-semibold text-slate-900">Consultations en cours</h3>
+                                                        <Badge variant="neutral">{counts.inProgress}</Badge>
+                                                    </div>
+                                                    {counts.inProgress === 0 ? (
+                                                        <div className="text-center py-8 rounded-xl bg-slate-50 border border-slate-100">
+                                                            <Stethoscope className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                                                            <p className="text-sm text-slate-400">Aucune consultation en cours</p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {todayAppointments.filter((a) => a.status === 'in-progress').map((apt) => (
+                                                                <div key={apt.id} className="flex items-center justify-between p-3 rounded-xl border border-amber-200 bg-amber-50/50">
+                                                                    <div className="flex items-center gap-3 min-w-0">
+                                                                        <span className="text-sm font-bold text-slate-900">{apt.time}</span>
+                                                                        <span className="text-base">{speciesIcon[apt.species]}</span>
+                                                                        <div className="min-w-0">
+                                                                            <button onClick={() => navigate(`/patients/${apt.patientId}`)} className="text-sm font-semibold text-slate-900 hover:text-primary-600 transition-colors truncate">{apt.patientName}</button>
+                                                                            <p className="text-xs text-slate-500">{typeLabel[apt.type]} · {apt.veterinarian}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold shrink-0">
+                                                                        <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                                                                        En consultation
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
 
-                            {todayAppointments.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                                    <p className="text-sm text-slate-400">Aucun rendez-vous aujourd'hui</p>
-                                </div>
-                            ) : (
-                                <div>
-                                    {todayAppointments.map((apt) => renderTimelineCard(apt, false))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* To bill section */}
-                        {counts.toBill > 0 && (
-                            <div className="bg-white rounded-2xl border border-emerald-200 overflow-hidden shadow-sm">
-                                <div className="px-5 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2">
-                                    <Receipt className="w-4 h-4 text-emerald-600" />
-                                    <h3 className="font-semibold text-emerald-800 text-sm">A facturer</h3>
-                                    <Badge variant="neutral">{counts.toBill}</Badge>
-                                </div>
-                                <div className="divide-y divide-slate-50">
-                                    {todayAppointments.filter(isUnbilled).map((apt) => (
-                                        <div key={apt.id} className="px-5 py-3 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-sm font-bold text-slate-900">{apt.time}</span>
-                                                <span className="text-base">{speciesIcon[apt.species]}</span>
-                                                <span className="text-sm text-slate-700">{apt.patientName}</span>
-                                                <span className="text-xs text-slate-400">{apt.ownerName}</span>
+                                                {/* A facturer */}
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Receipt className="w-5 h-5 text-emerald-600" />
+                                                        <h3 className="font-semibold text-slate-900">A facturer</h3>
+                                                        {counts.toBill > 0 && <Badge variant="neutral">{counts.toBill}</Badge>}
+                                                    </div>
+                                                    {counts.toBill === 0 ? (
+                                                        <div className="text-center py-8 rounded-xl bg-emerald-50/50 border border-emerald-100">
+                                                            <CheckCircle className="w-7 h-7 text-emerald-300 mx-auto mb-2" />
+                                                            <p className="text-sm text-emerald-600 font-medium">Tout est a jour</p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {todayAppointments.filter(isUnbilled).map((apt) => (
+                                                                <div key={apt.id} className="flex items-center justify-between p-3 rounded-xl border border-emerald-100 bg-white">
+                                                                    <div className="flex items-center gap-3 min-w-0">
+                                                                        <span className="text-sm font-bold text-slate-900">{apt.time}</span>
+                                                                        <span className="text-base">{speciesIcon[apt.species]}</span>
+                                                                        <div className="min-w-0">
+                                                                            <p className="text-sm font-semibold text-slate-900 truncate">{apt.patientName}</p>
+                                                                            <p className="text-xs text-slate-500">{typeLabel[apt.type]} · {apt.veterinarian} · ~{appointmentDefaultPrice[apt.type]} EUR</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <button onClick={() => {
+                                                                        const invoice = createAutoInvoiceFromAppointment(apt);
+                                                                        if (invoice) toast.success(`Facture ${invoice.invoiceNumber} generee`);
+                                                                    }} className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors">
+                                                                        <Receipt className="w-4 h-4" /> Generer facture
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <button onClick={() => {
-                                                const invoice = createAutoInvoiceFromAppointment(apt);
-                                                if (invoice) toast.success(`Facture ${invoice.invoiceNumber} generee`);
-                                            }} className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2">
-                                                <Receipt className="w-4 h-4" /> Generer
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                                        )}
+
+                                        {/* ─── TAB: Planning du jour ─── */}
+                                        {activeTab === 'planning' && (
+                                            <div className="space-y-5">
+                                                {renderProgressStepper()}
+
+                                                {todayAppointments.length === 0 ? (
+                                                    <div className="text-center py-12">
+                                                        <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                                                        <p className="text-sm text-slate-400">Aucun rendez-vous aujourd'hui</p>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        {/* Group by veterinarian */}
+                                                        {(() => {
+                                                            const byVet = new Map<string, Appointment[]>();
+                                                            todayAppointments.forEach((apt) => {
+                                                                const list = byVet.get(apt.veterinarian) || [];
+                                                                list.push(apt);
+                                                                byVet.set(apt.veterinarian, list);
+                                                            });
+                                                            return Array.from(byVet.entries()).map(([vet, apts]) => (
+                                                                <div key={vet}>
+                                                                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+                                                                        <Stethoscope className="w-4 h-4 text-primary-500" />
+                                                                        <h3 className="text-sm font-semibold text-slate-700">{vet}</h3>
+                                                                        <Badge variant="neutral">{apts.length}</Badge>
+                                                                    </div>
+                                                                    <div>
+                                                                        {apts.map((apt) => renderTimelineCard(apt, 'assistant'))}
+                                                                    </div>
+                                                                </div>
+                                                            ));
+                                                        })()}
+
+                                                        <div className="pt-2 text-center">
+                                                            <button onClick={() => navigate('/appointments')} className="text-sm text-primary-600 hover:text-primary-700 font-medium inline-flex items-center gap-1">
+                                                                Voir le calendrier complet <ArrowRight className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* ─── TAB: Facturation ─── */}
+                                        {activeTab === 'facturation' && (
+                                            <AssistantBillingTab invoices={invoices} navigate={navigate} />
+                                        )}
+                                    </div>
+                                )}
+                            </Tabs>
+                        </div>
                     </>
                 )}
             </div>
