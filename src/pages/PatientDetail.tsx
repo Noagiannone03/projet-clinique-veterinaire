@@ -106,7 +106,7 @@ export function PatientDetail() {
         toast.success('Vaccination ajoutee');
     };
 
-    const handleAddAppointment = (data: AppointmentFormData) => {
+    const handleAddAppointment = (data: AppointmentFormData, force = false) => {
         const result = addAppointment({
             patientId: patient.id,
             patientName: patient.name,
@@ -118,9 +118,10 @@ export function PatientDetail() {
             type: data.type,
             veterinarian: data.veterinarian,
             notes: data.notes,
-        });
+        }, force);
         if (result.ok) toast.success('RDV cree');
         else toast.error(result.message);
+        return result;
     };
 
     const handleDelete = () => {

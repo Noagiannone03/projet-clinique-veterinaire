@@ -76,14 +76,14 @@ const timeToMinutes = (time: string): number => {
     return hours * 60 + minutes;
 };
 
-const hasConflict = (
+const getConflict = (
     appointments: Appointment[],
     candidate: { id?: string; date: string; time: string; duration: number; veterinarian: string }
-): boolean => {
+): Appointment | undefined => {
     const start = timeToMinutes(candidate.time);
     const end = start + candidate.duration;
 
-    return appointments.some((appointment) => {
+    return appointments.find((appointment) => {
         if (
             appointment.id === candidate.id ||
             appointment.status === 'cancelled' ||
@@ -199,16 +199,18 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     }, []);
 
     // ---- APPOINTMENTS ----
-    const addAppointment = useCallback((input: NewAppointmentInput) => {
-        const isConflict = hasConflict(appointments, {
-            date: input.date,
-            time: input.time,
-            duration: input.duration,
-            veterinarian: input.veterinarian,
-        });
+    const addAppointment = useCallback((input: NewAppointmentInput, force = false) => {
+        if (!force) {
+            const conflict = getConflict(appointments, {
+                date: input.date,
+                time: input.time,
+                duration: input.duration,
+                veterinarian: input.veterinarian,
+            });
 
-        if (isConflict) {
-            return { ok: false as const, message: 'Conflit de planning sur ce creneau.' };
+            if (conflict) {
+                return { ok: false as const, message: 'Conflit de planning sur ce creneau.', conflict };
+            }
         }
 
         const created: Appointment = {
@@ -231,10 +233,28 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         return { ok: true as const };
     }, [appointments, logActivity]);
 
-    const updateAppointment = useCallback((id: string, data: Partial<Appointment>) => {
+    const updateAppointment = useCallback((id: string, data: Partial<Appointment>, force = false) => {
+        const current = appointments.find((a) => a.id === id);
+        if (!current) return { ok: false as const, message: 'Rendez-vous introuvable.' };
+
+        if (!force && (data.date || data.time || data.duration || data.veterinarian)) {
+            const conflict = getConflict(appointments, {
+                id,
+                date: data.date ?? current.date,
+                time: data.time ?? current.time,
+                duration: data.duration ?? current.duration,
+                veterinarian: data.veterinarian ?? current.veterinarian,
+            });
+
+            if (conflict) {
+                return { ok: false as const, message: 'Conflit de planning sur ce creneau.', conflict };
+            }
+        }
+
         setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)));
         logActivity('update', 'appointment', id);
-    }, [logActivity]);
+        return { ok: true as const };
+    }, [appointments, logActivity]);
 
     const deleteAppointment = useCallback((id: string) => {
         setAppointments((prev) => prev.filter((a) => a.id !== id));
@@ -253,7 +273,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             if (!current) return { ok: false as const, message: 'Rendez-vous introuvable.' };
 
             const duration = patch.duration ?? current.duration;
-            const isConflict = hasConflict(appointments, {
+            const conflict = getConflict(appointments, {
                 id: appointmentId,
                 date: patch.date,
                 time: patch.time,
@@ -261,7 +281,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 veterinarian: current.veterinarian,
             });
 
-            if (isConflict) return { ok: false as const, message: 'Conflit detecte avec un autre rendez-vous.' };
+            if (conflict) return { ok: false as const, message: 'Conflit detecte avec un autre rendez-vous.', conflict };
 
             setAppointments((prev) =>
                 prev.map((a) =>

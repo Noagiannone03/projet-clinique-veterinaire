@@ -36,11 +36,11 @@ interface AppointmentAction {
 const statusColors: Record<Appointment['status'], {
     bg: string; text: string; border: string; dot: string; ring: string; hex: string;
 }> = {
-    scheduled:    { bg: 'bg-primary-50',     text: 'text-primary-700',     border: 'border-l-primary-400',     dot: 'bg-primary-400',     ring: 'ring-primary-200',     hex: '#3B82F6' },
-    arrived:      { bg: 'bg-secondary-50',  text: 'text-secondary-700',  border: 'border-l-secondary-400',  dot: 'bg-secondary-500',  ring: 'ring-secondary-200',  hex: '#06B6D4' },
-    'in-progress':{ bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-l-amber-400',   dot: 'bg-amber-500',   ring: 'ring-amber-200',   hex: '#F59E0B' },
-    completed:    { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-l-emerald-400', dot: 'bg-emerald-500', ring: 'ring-emerald-200', hex: '#10B981' },
-    cancelled:    { bg: 'bg-rose-50',    text: 'text-rose-700',    border: 'border-l-rose-400',    dot: 'bg-rose-400',    ring: 'ring-rose-200',    hex: '#F43F5E' },
+    scheduled: { bg: 'bg-primary-50', text: 'text-primary-700', border: 'border-l-primary-400', dot: 'bg-primary-400', ring: 'ring-primary-200', hex: '#3B82F6' },
+    arrived: { bg: 'bg-secondary-50', text: 'text-secondary-700', border: 'border-l-secondary-400', dot: 'bg-secondary-500', ring: 'ring-secondary-200', hex: '#06B6D4' },
+    'in-progress': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-400', dot: 'bg-amber-500', ring: 'ring-amber-200', hex: '#F59E0B' },
+    completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-l-emerald-400', dot: 'bg-emerald-500', ring: 'ring-emerald-200', hex: '#10B981' },
+    cancelled: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-l-rose-400', dot: 'bg-rose-400', ring: 'ring-rose-200', hex: '#F43F5E' },
 };
 
 const statusLabel: Record<Appointment['status'], string> = {
@@ -50,10 +50,10 @@ const statusLabel: Record<Appointment['status'], string> = {
 
 const typeInfo: Record<Appointment['type'], { icon: string; label: string }> = {
     consultation: { icon: '🩺', label: 'Consultation' },
-    vaccination:  { icon: '💉', label: 'Vaccination' },
-    surgery:      { icon: '🔪', label: 'Chirurgie' },
-    'follow-up':  { icon: '👀', label: 'Suivi' },
-    emergency:    { icon: '🚨', label: 'Urgence' },
+    vaccination: { icon: '💉', label: 'Vaccination' },
+    surgery: { icon: '🔪', label: 'Chirurgie' },
+    'follow-up': { icon: '👀', label: 'Suivi' },
+    emergency: { icon: '🚨', label: 'Urgence' },
 };
 
 const appointmentBillingLabel: Record<Appointment['type'], string> = {
@@ -85,10 +85,10 @@ const vetPalette = [
 ];
 
 const pipelineSteps: Array<{ status: Appointment['status']; label: string; dot: string; ring: string; textColor: string }> = [
-    { status: 'scheduled',    label: 'Planifié', dot: 'bg-primary-500',     ring: 'ring-primary-200',     textColor: 'text-primary-600' },
-    { status: 'arrived',      label: 'Arrivé',   dot: 'bg-secondary-500',  ring: 'ring-secondary-200',  textColor: 'text-secondary-600' },
-    { status: 'in-progress',  label: 'En cours', dot: 'bg-amber-500',   ring: 'ring-amber-200',   textColor: 'text-amber-600' },
-    { status: 'completed',    label: 'Terminé',  dot: 'bg-emerald-500', ring: 'ring-emerald-200', textColor: 'text-emerald-600' },
+    { status: 'scheduled', label: 'Planifié', dot: 'bg-primary-500', ring: 'ring-primary-200', textColor: 'text-primary-600' },
+    { status: 'arrived', label: 'Arrivé', dot: 'bg-secondary-500', ring: 'ring-secondary-200', textColor: 'text-secondary-600' },
+    { status: 'in-progress', label: 'En cours', dot: 'bg-amber-500', ring: 'ring-amber-200', textColor: 'text-amber-600' },
+    { status: 'completed', label: 'Terminé', dot: 'bg-emerald-500', ring: 'ring-emerald-200', textColor: 'text-emerald-600' },
 ];
 
 function getInitials(name: string): string {
@@ -281,10 +281,10 @@ export function Appointments() {
 
     /* ── Calendar helpers ── */
     const syncDate = () => { const d = calendarRef.current?.getApi().getDate(); if (d) setDate(d); };
-    const handlePrev   = () => { calendarRef.current?.getApi().prev();  syncDate(); };
-    const handleNext   = () => { calendarRef.current?.getApi().next();  syncDate(); };
-    const handleToday  = () => { calendarRef.current?.getApi().today(); setDate(new Date()); };
-    const changeView   = (v: CalendarView) => { calendarRef.current?.getApi().changeView(v); setView(v); syncDate(); };
+    const handlePrev = () => { calendarRef.current?.getApi().prev(); syncDate(); };
+    const handleNext = () => { calendarRef.current?.getApi().next(); syncDate(); };
+    const handleToday = () => { calendarRef.current?.getApi().today(); setDate(new Date()); };
+    const changeView = (v: CalendarView) => { calendarRef.current?.getApi().changeView(v); setView(v); syncDate(); };
 
     const queueMove = (event: EventApi, revert: () => void) => {
         const apt = appointments.find((e) => e.id === event.id);
@@ -636,13 +636,14 @@ export function Appointments() {
             <AppointmentForm
                 isOpen={showNewAppointment}
                 onClose={() => setShowNewAppointment(false)}
-                onSubmit={(data) => {
+                onSubmit={(data, force = false) => {
                     const p = patients.find((pt) => pt.id === data.patientId);
-                    if (!p) { toast.error('Patient introuvable'); return; }
-                    const r = addAppointment({ ...data, patientName: p.name, ownerName: `${p.owner.firstName} ${p.owner.lastName}`, species: p.species, duration: Number(data.duration) });
-                    if (!r.ok) { toast.error(r.message); return; }
+                    if (!p) { toast.error('Patient introuvable'); return { ok: false, message: 'Patient introuvable' }; }
+                    const r = addAppointment({ ...data, patientName: p.name, ownerName: `${p.owner.firstName} ${p.owner.lastName}`, species: p.species, duration: Number(data.duration) }, force);
+                    if (!r.ok) { toast.error(r.message); return r; }
                     toast.success('Rendez-vous créé');
                     setShowNewAppointment(false);
+                    return r;
                 }}
                 defaultDate={format(date, 'yyyy-MM-dd')}
             />
@@ -651,12 +652,14 @@ export function Appointments() {
                 <AppointmentForm
                     isOpen={showEditAppointment}
                     onClose={() => setShowEditAppointment(false)}
-                    onSubmit={(data) => {
+                    onSubmit={(data, force = false) => {
                         const p = patients.find((pt) => pt.id === data.patientId);
-                        if (!p) { toast.error('Patient introuvable'); return; }
-                        updateAppointment(selectedAppt.id, { ...data, patientName: p.name, ownerName: `${p.owner.firstName} ${p.owner.lastName}`, species: p.species, duration: Number(data.duration) });
+                        if (!p) { toast.error('Patient introuvable'); return { ok: false, message: 'Patient introuvable' }; }
+                        const r = updateAppointment(selectedAppt.id, { ...data, patientName: p.name, ownerName: `${p.owner.firstName} ${p.owner.lastName}`, species: p.species, duration: Number(data.duration) }, force);
+                        if (!r.ok) { toast.error(r.message); return r; }
                         toast.success('Rendez-vous modifié');
                         setShowEditAppointment(false);
+                        return r;
                     }}
                     appointment={selectedAppt}
                 />

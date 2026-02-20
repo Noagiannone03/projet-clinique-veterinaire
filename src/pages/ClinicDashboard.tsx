@@ -193,7 +193,7 @@ export function ClinicDashboard() {
         setShowInvoiceForm(true);
     };
 
-    const handleNewAppointment = (data: AppointmentFormData) => {
+    const handleNewAppointment = (data: AppointmentFormData, force = false) => {
         const patient = patients.find((p) => p.id === data.patientId);
         if (!patient) return;
         const result = addAppointment({
@@ -202,9 +202,10 @@ export function ClinicDashboard() {
             species: patient.species, date: data.date, time: data.time,
             duration: Number(data.duration), type: data.type,
             veterinarian: data.veterinarian, notes: data.notes,
-        });
+        }, force);
         if (result.ok) toast.success('RDV cree');
         else toast.error(result.message);
+        return result;
     };
 
     const handleNewInvoice = (data: InvoiceFormData) => {

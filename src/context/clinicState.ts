@@ -45,14 +45,14 @@ export interface ClinicContextValue {
     removeAlert: (patientId: string, alertId: string) => void;
 
     // Appointments CRUD
-    addAppointment: (input: NewAppointmentInput) => { ok: true } | { ok: false; message: string };
-    updateAppointment: (id: string, data: Partial<Appointment>) => void;
+    addAppointment: (input: NewAppointmentInput, force?: boolean) => { ok: true } | { ok: false; message: string; conflict?: Appointment };
+    updateAppointment: (id: string, data: Partial<Appointment>, force?: boolean) => { ok: true } | { ok: false; message: string; conflict?: Appointment };
     deleteAppointment: (id: string) => void;
     updateAppointmentStatus: (appointmentId: string, status: Appointment['status']) => void;
     updateAppointmentSchedule: (
         appointmentId: string,
         patch: { date: string; time: string; duration?: number }
-    ) => { ok: true } | { ok: false; message: string };
+    ) => { ok: true } | { ok: false; message: string; conflict?: Appointment };
     cancelAppointment: (id: string, reason: string) => void;
 
     // Products CRUD
