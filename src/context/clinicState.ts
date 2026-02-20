@@ -11,6 +11,8 @@ import type {
     MedicalRecord,
     Vaccination,
     Alert,
+    PrescriptionOrder,
+    PrescriptionOrderLine,
 } from '../types';
 
 export interface NewAppointmentInput {
@@ -34,12 +36,13 @@ export interface ClinicContextValue {
     products: Product[];
     stockMovements: StockMovement[];
     activityLog: ActivityLogEntry[];
+    prescriptionOrders: PrescriptionOrder[];
 
     // Patients CRUD
     addPatient: (patient: Omit<Patient, 'id' | 'alerts' | 'vaccinations' | 'medicalHistory'>) => Patient;
     updatePatient: (id: string, data: Partial<Patient>) => void;
     deletePatient: (id: string) => void;
-    addMedicalRecord: (patientId: string, record: Omit<MedicalRecord, 'id'>) => void;
+    addMedicalRecord: (patientId: string, record: Omit<MedicalRecord, 'id'>) => MedicalRecord;
     addVaccination: (patientId: string, vaccination: Omit<Vaccination, 'id'>) => void;
     addAlert: (patientId: string, alert: Omit<Alert, 'id'>) => void;
     removeAlert: (patientId: string, alertId: string) => void;
@@ -71,6 +74,24 @@ export interface ClinicContextValue {
     updateInvoiceData: (id: string, lines: InvoiceLineInput[]) => void;
     recordPayment: (invoiceId: string, payment: Omit<Payment, 'id' | 'invoiceId'>) => void;
     recordInvoicePayment: (invoiceId: string) => void;
+
+    // Prescriptions workflow
+    createPrescriptionOrder: (order: {
+        patientId: string;
+        patientName: string;
+        ownerName: string;
+        veterinarian: string;
+        issueDate: string;
+        diagnosis?: string;
+        notes?: string;
+        lines: Omit<PrescriptionOrderLine, 'id'>[];
+        sourceAppointmentId?: string;
+        sourceMedicalRecordId?: string;
+    }) => PrescriptionOrder;
+    markPrescriptionAsPrinted: (prescriptionOrderId: string) => void;
+    markPrescriptionAsPrepared: (prescriptionOrderId: string) => void;
+    markPrescriptionAsDispensed: (prescriptionOrderId: string) => { ok: true } | { ok: false; message: string };
+    cancelPrescriptionOrder: (prescriptionOrderId: string, reason?: string) => void;
 }
 
 export const ClinicStateContext = createContext<ClinicContextValue | undefined>(undefined);

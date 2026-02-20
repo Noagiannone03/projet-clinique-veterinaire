@@ -9,7 +9,7 @@ import { useClinicData } from '../context/clinicState';
 import { useAuth } from '../context/AuthContext';
 import {
     ArrowLeft, Dog, Cat, Bird, Rabbit, AlertTriangle, Syringe, FileText, Calendar,
-    User, Phone, Mail, MapPin, Weight, Palette, Cpu, Clock, Plus, Edit, Trash2, Printer, Receipt,
+    User, Phone, Mail, MapPin, Weight, Palette, Cpu, Clock, Plus, Edit, Trash2, Printer, Receipt, Pill,
 } from 'lucide-react';
 import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -33,7 +33,19 @@ export function PatientDetail() {
     const navigate = useNavigate();
     const { role } = useAuth();
     const toast = useToast();
-    const { patients, updatePatient, deletePatient, addMedicalRecord, addVaccination, appointments, addAppointment, invoices } = useClinicData();
+    const {
+        patients,
+        updatePatient,
+        deletePatient,
+        addMedicalRecord,
+        addVaccination,
+        appointments,
+        addAppointment,
+        invoices,
+        products,
+        prescriptionOrders,
+        createPrescriptionOrder,
+    } = useClinicData();
 
     const patient = patients.find((p) => p.id === id);
 
@@ -61,6 +73,9 @@ export function PatientDetail() {
     const patientPhotoUrl = getPatientPhotoUrl(patient.species, patient.id);
     const patientAppointments = appointments.filter((a) => a.patientId === patient.id).sort((a, b) => b.date.localeCompare(a.date));
     const patientInvoices = invoices.filter((i) => i.patientId === patient.id);
+    const patientPrescriptionOrders = prescriptionOrders
+        .filter((order) => order.patientId === patient.id)
+        .sort((a, b) => b.issueDate.localeCompare(a.issueDate));
 
     const handleUpdatePatient = (data: PatientFormData) => {
         updatePatient(patient.id, {
@@ -77,7 +92,7 @@ export function PatientDetail() {
     };
 
     const handleAddRecord = (data: MedicalRecordFormData) => {
-        addMedicalRecord(patient.id, {
+        const createdRecord = addMedicalRecord(patient.id, {
             date: data.date,
             type: data.type,
             diagnosis: data.diagnosis,
@@ -93,6 +108,34 @@ export function PatientDetail() {
                 instructions: p.instructions || '',
             })),
         });
+        if ((data.prescriptions || []).length > 0) {
+            createPrescriptionOrder({
+                patientId: patient.id,
+                patientName: patient.name,
+                ownerName: `${patient.owner.firstName} ${patient.owner.lastName}`,
+                veterinarian: data.veterinarian,
+                issueDate: data.date,
+                diagnosis: data.diagnosis,
+                notes: data.notes,
+                sourceMedicalRecordId: createdRecord.id,
+                lines: (data.prescriptions || []).map((p) => {
+                    const matchingProduct = products.find((product) =>
+                        product.name.toLowerCase() === p.medication.toLowerCase()
+                    );
+                    const quantityMatch = p.dosage.replace(',', '.').match(/\d+(\.\d+)?/);
+                    const quantity = quantityMatch ? Math.max(1, Math.ceil(Number(quantityMatch[0]))) : 1;
+                    return {
+                        medication: p.medication,
+                        dosage: p.dosage,
+                        frequency: p.frequency,
+                        duration: p.duration,
+                        instructions: p.instructions || '',
+                        quantity,
+                        productId: matchingProduct?.id,
+                    };
+                }),
+            });
+        }
         toast.success('Consultation ajoutee');
     };
 
@@ -128,6 +171,7 @@ export function PatientDetail() {
     const tabs = [
         { key: 'info', label: 'Informations', icon: <User className="w-4 h-4" /> },
         { key: 'medical', label: 'Historique', icon: <FileText className="w-4 h-4" />, count: patient.medicalHistory.length },
+        { key: 'prescriptions', label: 'Ordonnances', icon: <Pill className="w-4 h-4" />, count: patientPrescriptionOrders.length },
         { key: 'vaccinations', label: 'Vaccinations', icon: <Syringe className="w-4 h-4" />, count: patient.vaccinations.length },
         { key: 'appointments', label: 'Rendez-vous', icon: <Calendar className="w-4 h-4" />, count: patientAppointments.length },
         { key: 'billing', label: 'Facturation', icon: <Receipt className="w-4 h-4" />, count: patientInvoices.length },
@@ -279,6 +323,68 @@ export function PatientDetail() {
                                                 )}
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+
+                        if (tab === 'prescriptions') return (
+                            <div>
+                                <div className="flex justify-end mb-4">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        icon={<Pill className="w-4 h-4" />}
+                                        onClick={() => navigate(`/prescriptions?patient=${patient.id}`)}
+                                    >
+                                        Ouvrir le module ordonnances
+                                    </Button>
+                                </div>
+                                {patientPrescriptionOrders.length === 0 ? (
+                                    <p className="text-slate-500 text-sm text-center py-8">Aucune ordonnance generee</p>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {patientPrescriptionOrders.map((order) => {
+                                            const statusVariant =
+                                                order.status === 'dispensed'
+                                                    ? 'success'
+                                                    : order.status === 'cancelled'
+                                                        ? 'danger'
+                                                        : order.status === 'prepared'
+                                                            ? 'info'
+                                                            : 'warning';
+                                            const statusLabel =
+                                                order.status === 'dispensed'
+                                                    ? 'Delivree'
+                                                    : order.status === 'cancelled'
+                                                        ? 'Annulee'
+                                                        : order.status === 'prepared'
+                                                            ? 'Preparee'
+                                                            : 'A preparer';
+                                            return (
+                                                <div key={order.id} className="bg-white rounded-xl border border-slate-200 p-4">
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="font-medium text-slate-900">{order.prescriptionNumber}</p>
+                                                            <p className="text-sm text-slate-500">
+                                                                {format(new Date(order.issueDate), 'dd/MM/yyyy')} · {order.veterinarian}
+                                                            </p>
+                                                        </div>
+                                                        <Badge variant={statusVariant}>{statusLabel}</Badge>
+                                                    </div>
+                                                    <div className="mt-3 space-y-1">
+                                                        {order.lines.map((line) => (
+                                                            <p key={line.id} className="text-sm text-slate-700">
+                                                                <span className="font-medium text-slate-900">{line.medication}</span>
+                                                                {' · '}
+                                                                {line.dosage}, {line.frequency}
+                                                                {line.duration ? `, ${line.duration}` : ''}
+                                                            </p>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>

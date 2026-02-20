@@ -8,6 +8,7 @@ import {
     ArrowRight,
     Search,
     Package,
+    Printer,
 } from 'lucide-react';
 import type { Appointment, Patient, Product } from '../../types';
 import type { InvoiceFormData, MedicalRecordFormData } from '../../schemas';
@@ -177,6 +178,71 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
         setPrescriptions(prescriptions.filter((p) => p.productId !== productId));
     };
 
+    const printPrescription = () => {
+        if (prescriptions.length === 0) return;
+        const escapeHtml = (value: string) => value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        const popup = window.open('', '_blank', 'width=960,height=820');
+        if (!popup) return;
+
+        const renderedLines = prescriptions.map((rx) => `
+            <tr>
+                <td>${escapeHtml(rx.productName)}</td>
+                <td>${rx.quantity}</td>
+                <td>${escapeHtml(rx.posology || 'A preciser')}</td>
+            </tr>
+        `).join('');
+
+        popup.document.write(`
+            <!doctype html>
+            <html lang="fr">
+            <head>
+                <meta charset="utf-8" />
+                <title>Ordonnance ${patient.name}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; color: #0f172a; margin: 28px; }
+                    .header { border-bottom: 2px solid #0b2c4d; padding-bottom: 10px; margin-bottom: 16px; }
+                    h1 { margin: 0; font-size: 22px; }
+                    .meta { margin-top: 6px; font-size: 13px; color: #334155; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+                    th, td { border: 1px solid #cbd5e1; padding: 8px; font-size: 13px; text-align: left; }
+                    th { background: #f1f5f9; }
+                    .block { margin-top: 14px; font-size: 13px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Ordonnance veterinaire</h1>
+                    <p class="meta">Patient: ${escapeHtml(patient.name)} · Proprietaire: ${escapeHtml(`${patient.owner.firstName} ${patient.owner.lastName}`)}</p>
+                    <p class="meta">Date: ${escapeHtml(appointment.date)} · Veterinaire: ${escapeHtml(appointment.veterinarian)}</p>
+                </div>
+                <div class="block"><strong>Diagnostic:</strong> ${escapeHtml(diagnosis || '-')}</div>
+                <div class="block"><strong>Traitement:</strong> ${escapeHtml(treatment || '-')}</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Medicament</th>
+                            <th>Quantite</th>
+                            <th>Posologie</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${renderedLines}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `);
+        popup.document.close();
+        popup.focus();
+        popup.print();
+        popup.close();
+    };
+
     const handleComplete = () => {
         if (!canComplete) return;
         const billingLines = buildInvoiceDefaults();
@@ -215,9 +281,25 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                         Acte pratique: {performedTypeLabel[performedType]} - {performedProcedure.trim()}
                     </p>
                     {prescriptions.length > 0 && (
-                        <p className="text-xs text-emerald-600 font-medium mb-6">
-                            Stock debite pour {prescriptions.length} produit(s)
-                        </p>
+                        <div className="rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 mb-4 text-left">
+                            <p className="text-xs font-bold uppercase tracking-wide text-primary-700 mb-2">
+                                Ordonnance prete
+                            </p>
+                            <div className="space-y-1 mb-3">
+                                {prescriptions.map((rx) => (
+                                    <p key={rx.productId} className="text-sm text-primary-900">
+                                        {rx.productName} · qte {rx.quantity}{rx.posology ? ` · ${rx.posology}` : ''}
+                                    </p>
+                                ))}
+                            </div>
+                            <button
+                                onClick={printPrescription}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:text-primary-800"
+                            >
+                                <Printer className="w-3.5 h-3.5" />
+                                Imprimer l'ordonnance
+                            </button>
+                        </div>
                     )}
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 mb-3 text-left">
                         <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-1">
@@ -495,7 +577,7 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
 
                         {/* Prescribed items */}
                         {prescriptions.length === 0 ? (
-                            <p className="text-sm text-slate-300 italic">Aucun medicament prescrit — le stock ne sera pas debite</p>
+                            <p className="text-sm text-slate-300 italic">Aucun medicament prescrit</p>
                         ) : (
                             <div className="space-y-2">
                                 {prescriptions.map((rx) => {
@@ -564,7 +646,7 @@ export function ConsultationPanel({ isOpen, appointment, patient, products, onCo
                 <div className="max-w-2xl mx-auto flex items-center justify-between">
                     <div className="text-xs text-slate-400">
                         {prescriptions.length > 0 && (
-                            <span>💊 {prescriptions.length} medicament(s) — stock sera debite automatiquement</span>
+                            <span>💊 {prescriptions.length} medicament(s) — ordonnance envoyee a l'accueil pour delivrance</span>
                         )}
                     </div>
                     <div className="flex items-center gap-3">

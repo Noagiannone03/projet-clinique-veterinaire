@@ -26,12 +26,12 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { AppointmentForm, InvoiceForm } from '../components/forms';
+import { InvoiceForm } from '../components/forms';
 import { ConsultationPanel } from '../components/consultation/ConsultationPanel';
 import { AppointmentBookingPanel } from '../components/appointment/AppointmentBookingPanel';
 import { useToast } from '../components/ui/Toast';
 import type { Appointment } from '../types';
-import type { AppointmentFormData, InvoiceFormData, MedicalRecordFormData } from '../schemas';
+import type { InvoiceFormData, MedicalRecordFormData } from '../schemas';
 
 // ─── Shared helpers ──────────────────────────────────────────
 type PipelineStatus = 'scheduled' | 'arrived' | 'in-progress' | 'completed';
@@ -175,7 +175,17 @@ function AssistantBillingTab({ invoices, navigate }: { invoices: import('../type
 // ─── Main Dashboard ──────────────────────────────────────────
 export function ClinicDashboard() {
     const { user, role } = useAuth();
-    const { patients, appointments, products, addAppointment, updateAppointmentStatus, addMedicalRecord, adjustProductStock, invoices, addInvoice } = useClinicData();
+    const {
+        patients,
+        appointments,
+        products,
+        updateAppointmentStatus,
+        addMedicalRecord,
+        adjustProductStock,
+        invoices,
+        addInvoice,
+        createPrescriptionOrder,
+    } = useClinicData();
     const navigate = useNavigate();
     const toast = useToast();
     const [showNewAppointment, setShowNewAppointment] = useState(false);
@@ -263,7 +273,7 @@ export function ClinicDashboard() {
         billingLines: InvoiceFormData['lines']
     ) => {
         if (!consultingAppointment) return;
-        addMedicalRecord(consultingAppointment.patientId, {
+        const createdRecord = addMedicalRecord(consultingAppointment.patientId, {
             date: record.date, type: record.type, diagnosis: record.diagnosis,
             treatment: record.treatment, notes: record.notes || '', veterinarian: record.veterinarian,
             prescriptions: (record.prescriptions || []).map((p) => ({
@@ -271,12 +281,36 @@ export function ClinicDashboard() {
                 frequency: p.frequency, duration: p.duration, instructions: p.instructions || '',
             })),
         });
-        for (const rx of prescribedProducts) {
-            adjustProductStock(rx.productId, -rx.quantity, 'prescription', `Prescription pour ${consultingAppointment.patientName}`);
+
+        if (prescribedProducts.length > 0) {
+            createPrescriptionOrder({
+                patientId: consultingAppointment.patientId,
+                patientName: consultingAppointment.patientName,
+                ownerName: consultingAppointment.ownerName,
+                veterinarian: record.veterinarian,
+                issueDate: record.date,
+                diagnosis: record.diagnosis,
+                notes: record.notes,
+                sourceAppointmentId: consultingAppointment.id,
+                sourceMedicalRecordId: createdRecord.id,
+                lines: prescribedProducts.map((rx) => ({
+                    medication: rx.productName,
+                    dosage: `${rx.quantity} unite(s)`,
+                    frequency: rx.posology || 'A preciser',
+                    duration: '',
+                    instructions: '',
+                    quantity: rx.quantity,
+                    productId: rx.productId,
+                })),
+            });
         }
+
         updateAppointmentStatus(consultingAppointment.id, 'completed');
         const invoice = createAutoInvoiceFromAppointment(consultingAppointment, billingLines);
         toast.success(`Consultation terminee pour ${consultingAppointment.patientName}`);
+        if (prescribedProducts.length > 0) {
+            toast.success('Ordonnance generee et envoyee a l\'accueil');
+        }
         if (invoice) {
             toast.success(`Facture ${invoice.invoiceNumber} generee automatiquement`);
         }
@@ -294,21 +328,6 @@ export function ClinicDashboard() {
     const handleCounterSale = () => {
         setShowCounterSale(true);
         setShowInvoiceForm(true);
-    };
-
-    const handleNewAppointment = (data: AppointmentFormData, force = false) => {
-        const patient = patients.find((p) => p.id === data.patientId);
-        if (!patient) return;
-        const result = addAppointment({
-            patientId: data.patientId, patientName: patient.name,
-            ownerName: `${patient.owner.firstName} ${patient.owner.lastName}`,
-            species: patient.species, date: data.date, time: data.time,
-            duration: Number(data.duration), type: data.type,
-            veterinarian: data.veterinarian, notes: data.notes,
-        }, force);
-        if (result.ok) toast.success('RDV cree');
-        else toast.error(result.message);
-        return result;
     };
 
     const handleNewInvoice = (data: InvoiceFormData) => {

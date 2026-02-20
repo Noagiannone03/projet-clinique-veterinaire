@@ -14,6 +14,7 @@ import {
     Appointments,
     Inventory,
     Billing,
+    Prescriptions,
 } from './pages';
 
 function App() {
@@ -86,6 +87,14 @@ function App() {
                                         element={
                                             <RoleGuard allowedRoles={['director', 'assistant']}>
                                                 <Billing />
+                                            </RoleGuard>
+                                        }
+                                    />
+                                    <Route
+                                        path="/prescriptions"
+                                        element={
+                                            <RoleGuard allowedRoles={['director', 'veterinarian', 'assistant']}>
+                                                <Prescriptions />
                                             </RoleGuard>
                                         }
                                     />

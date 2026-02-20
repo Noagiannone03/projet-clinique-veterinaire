@@ -58,6 +58,7 @@ export interface MedicalRecord {
     notes: string;
     veterinarian: string;
     prescriptions: Prescription[];
+    prescriptionOrderId?: string;
 }
 
 export interface Prescription {
@@ -67,6 +68,42 @@ export interface Prescription {
     frequency: string;
     duration: string;
     instructions: string;
+}
+
+export type PrescriptionOrderStatus = 'pending' | 'prepared' | 'dispensed' | 'cancelled';
+
+export interface PrescriptionOrderLine {
+    id: string;
+    medication: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions: string;
+    quantity: number;
+    productId?: string;
+}
+
+export interface PrescriptionOrder {
+    id: string;
+    prescriptionNumber: string;
+    patientId: string;
+    patientName: string;
+    ownerName: string;
+    veterinarian: string;
+    issueDate: string;
+    diagnosis?: string;
+    notes?: string;
+    status: PrescriptionOrderStatus;
+    lines: PrescriptionOrderLine[];
+    sourceAppointmentId?: string;
+    sourceMedicalRecordId?: string;
+    preparedAt?: string;
+    preparedBy?: string;
+    dispensedAt?: string;
+    dispensedBy?: string;
+    lastPrintedAt?: string;
+    printedCount: number;
+    cancellationReason?: string;
 }
 
 // Appointment Types

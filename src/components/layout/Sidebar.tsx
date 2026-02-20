@@ -5,6 +5,7 @@ import {
     Calendar,
     Package,
     Receipt,
+    Pill,
     Settings,
     LogOut,
     BarChart3,
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
     { to: '/appointments', icon: Calendar, label: 'Rendez-vous', roles: ['veterinarian', 'assistant'] },
     { to: '/inventory', icon: Package, label: 'Inventaire', roles: ['veterinarian', 'assistant'] },
     { to: '/billing', icon: Receipt, label: 'Facturation', roles: ['director', 'assistant'] },
+    { to: '/prescriptions', icon: Pill, label: 'Ordonnances', roles: ['director', 'veterinarian', 'assistant'] },
 ];
 
 export function Sidebar() {

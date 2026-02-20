@@ -15,7 +15,7 @@ interface HeaderProps {
 export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
     const { user, role } = useAuth();
     const { openMobile } = useSidebar();
-    const { patients, products, invoices, appointments } = useClinicData();
+    const { patients, products, invoices, appointments, prescriptionOrders } = useClinicData();
     const [showNotifications, setShowNotifications] = useState(false);
     const notifRef = useRef<HTMLDivElement>(null);
 
@@ -23,6 +23,10 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
     const lowStock = getLowStockProducts(products);
     const overdueInvoices = getOverdueInvoices(invoices);
     const pendingInvoices = getPendingInvoices(invoices);
+    const pendingPrescriptionOrders = prescriptionOrders.filter(
+        (order) => order.status === 'pending' || order.status === 'prepared'
+    );
+    const preparedPrescriptionOrders = prescriptionOrders.filter((order) => order.status === 'prepared');
 
     const today = new Date().toISOString().split('T')[0];
     const todayAppointments = appointments.filter((a) => a.date === today);
@@ -37,6 +41,8 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
             notifications.push({ title: `${overdueInvoices.length} facture(s) en retard`, detail: `Total: ${overdueInvoices.reduce((s, i) => s + i.total, 0).toFixed(2)} EUR`, color: 'text-rose-700' });
         if (pendingInvoices.length > 0)
             notifications.push({ title: `${pendingInvoices.length} facture(s) en attente`, detail: 'Paiement a encaisser', color: 'text-amber-700' });
+        if (pendingPrescriptionOrders.length > 0)
+            notifications.push({ title: `${pendingPrescriptionOrders.length} ordonnance(s) ouvertes`, detail: 'Suivi en cours a l\'accueil', color: 'text-primary-700' });
         const totalRevenue = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + i.total, 0);
         notifications.push({ title: 'Chiffre d\'affaires encaisse', detail: `${totalRevenue.toFixed(2)} EUR`, color: 'text-emerald-700' });
     }
@@ -50,6 +56,14 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
         const criticalPatients = patients.filter((p) => p.alerts.some((a) => a.severity === 'high'));
         if (criticalPatients.length > 0)
             notifications.push({ title: `${criticalPatients.length} alerte(s) patient critique`, detail: criticalPatients.map((p) => p.name).join(', '), color: 'text-rose-700' });
+        const userLower = user?.name.toLowerCase() ?? '';
+        const userLastName = userLower.split(' ').pop() ?? '';
+        const myOpenPrescriptions = pendingPrescriptionOrders.filter((order) => {
+            const vet = order.veterinarian.toLowerCase();
+            return vet === userLower || (userLastName && vet.includes(userLastName));
+        });
+        if (myOpenPrescriptions.length > 0)
+            notifications.push({ title: `${myOpenPrescriptions.length} ordonnance(s) a finaliser`, detail: 'En attente de preparation/delivrance', color: 'text-secondary-700' });
     }
 
     if (role === 'assistant') {
@@ -61,6 +75,8 @@ export function Header({ title, subtitle, breadcrumbs }: HeaderProps) {
             notifications.push({ title: `${pendingInvoices.length} facture(s) a encaisser`, detail: 'Paiement en attente', color: 'text-primary-700' });
         if (overdueInvoices.length > 0)
             notifications.push({ title: `${overdueInvoices.length} facture(s) en retard`, detail: 'Relance necessaire', color: 'text-rose-700' });
+        if (pendingPrescriptionOrders.length > 0)
+            notifications.push({ title: `${pendingPrescriptionOrders.length} ordonnance(s) a traiter`, detail: `${preparedPrescriptionOrders.length} prete(s) a delivrer`, color: 'text-secondary-700' });
     }
 
     const totalAlerts = notifications.length;

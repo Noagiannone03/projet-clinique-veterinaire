@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, PawPrint, Calendar, Package, Receipt, ArrowRight, Plus, Stethoscope, CreditCard, BarChart3 } from 'lucide-react';
+import { Search, PawPrint, Calendar, Package, Receipt, ArrowRight, Plus, Stethoscope, CreditCard, BarChart3, Pill } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClinicData } from '../../context/clinicState';
 import { useAuth } from '../../context/AuthContext';
@@ -10,7 +10,7 @@ interface SearchResult {
     id: string;
     label: string;
     sublabel: string;
-    type: 'patient' | 'appointment' | 'product' | 'invoice' | 'action';
+    type: 'patient' | 'appointment' | 'product' | 'invoice' | 'prescription' | 'action';
     link: string;
     icon: React.ReactNode;
 }
@@ -20,6 +20,7 @@ const typeIcons = {
     appointment: <Calendar className="w-4 h-4" />,
     product: <Package className="w-4 h-4" />,
     invoice: <Receipt className="w-4 h-4" />,
+    prescription: <Pill className="w-4 h-4" />,
 };
 
 interface QuickAction {
@@ -37,15 +38,16 @@ const quickActions: QuickAction[] = [
     { id: 'qa-invoice', label: 'Nouvelle facture', sublabel: 'Creer une facture', link: '/billing', icon: <CreditCard className="w-4 h-4" />, roles: ['assistant', 'veterinarian'] },
     { id: 'qa-inventory', label: 'Gerer inventaire', sublabel: 'Stock et produits', link: '/inventory', icon: <Package className="w-4 h-4" />, roles: ['assistant', 'veterinarian'] },
     { id: 'qa-consult', label: 'Mes consultations', sublabel: 'Voir mon planning', link: '/appointments', icon: <Stethoscope className="w-4 h-4" />, roles: ['veterinarian'] },
+    { id: 'qa-prescriptions', label: 'Ordonnances', sublabel: 'Suivi preparation et delivrance', link: '/prescriptions', icon: <Pill className="w-4 h-4" />, roles: ['director', 'veterinarian', 'assistant'] },
     { id: 'qa-dashboard', label: 'Dashboard financier', sublabel: 'KPIs et chiffre d\'affaires', link: '/', icon: <BarChart3 className="w-4 h-4" />, roles: ['director'] },
     { id: 'qa-billing', label: 'Suivi facturation', sublabel: 'Factures et paiements', link: '/billing', icon: <Receipt className="w-4 h-4" />, roles: ['director'] },
 ];
 
 // Which entity types each role can search
 const searchableTypes: Record<Role, Set<string>> = {
-    director: new Set(['patient', 'appointment', 'invoice']),
-    veterinarian: new Set(['patient', 'appointment', 'product', 'invoice']),
-    assistant: new Set(['patient', 'appointment', 'product', 'invoice']),
+    director: new Set(['patient', 'appointment', 'invoice', 'prescription']),
+    veterinarian: new Set(['patient', 'appointment', 'product', 'invoice', 'prescription']),
+    assistant: new Set(['patient', 'appointment', 'product', 'invoice', 'prescription']),
 };
 
 export function CommandPalette() {
@@ -54,7 +56,7 @@ export function CommandPalette() {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
-    const { patients, appointments, products, invoices } = useClinicData();
+    const { patients, appointments, products, invoices, prescriptionOrders } = useClinicData();
     const { role } = useAuth();
 
     useEffect(() => {
@@ -170,8 +172,27 @@ export function CommandPalette() {
             });
         }
 
+        if (allowedTypes.has('prescription')) {
+            prescriptionOrders.forEach((order) => {
+                if (
+                    order.prescriptionNumber.toLowerCase().includes(q) ||
+                    order.patientName.toLowerCase().includes(q) ||
+                    order.ownerName.toLowerCase().includes(q)
+                ) {
+                    res.push({
+                        id: order.id,
+                        label: order.prescriptionNumber,
+                        sublabel: `${order.patientName} - ${order.veterinarian}`,
+                        type: 'prescription',
+                        link: '/prescriptions',
+                        icon: typeIcons.prescription,
+                    });
+                }
+            });
+        }
+
         return res.slice(0, 10);
-    }, [query, patients, appointments, products, invoices, role, allowedTypes])();
+    }, [query, patients, appointments, products, invoices, prescriptionOrders, role, allowedTypes])();
 
     const select = (result: SearchResult) => {
         setIsOpen(false);

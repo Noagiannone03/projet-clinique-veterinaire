@@ -11,6 +11,8 @@ import type {
     MedicalRecord,
     Vaccination,
     Alert,
+    PrescriptionOrder,
+    PrescriptionOrderLine,
 } from '../types';
 import { appointments as initialAppointments } from '../data/appointments';
 import { invoices as rawInitialInvoices } from '../data/invoices';
@@ -106,6 +108,94 @@ function loadState<T>(key: string, fallback: T): T {
     return storage.get<T>(key) ?? fallback;
 }
 
+function getCurrentActor(): string {
+    return localStorage.getItem('vetcare_user_name')
+        || localStorage.getItem('vetcare_role')
+        || 'Utilisateur inconnu';
+}
+
+function toSafeQuantity(quantity: number): number {
+    if (!Number.isFinite(quantity)) return 1;
+    return Math.max(1, Math.round(quantity));
+}
+
+function normalizePrescriptionOrders(list: PrescriptionOrder[]): PrescriptionOrder[] {
+    return list.map((order) => ({
+        ...order,
+        status: order.status ?? 'pending',
+        printedCount: order.printedCount ?? 0,
+        lines: order.lines.map((line) => ({
+            ...line,
+            id: line.id || generateId('rxl'),
+            quantity: toSafeQuantity(line.quantity),
+        })),
+    }));
+}
+
+function parsePrescriptionQuantity(text: string): number {
+    const match = text.replace(',', '.').match(/\d+(\.\d+)?/);
+    if (!match) return 1;
+    return toSafeQuantity(Math.ceil(Number(match[0])));
+}
+
+function buildInitialPrescriptionOrders(
+    seedPatients: Patient[],
+    seedProducts: Product[]
+): PrescriptionOrder[] {
+    const productIdByName = new Map(seedProducts.map((p) => [p.name.toLowerCase(), p.id]));
+    const orders: PrescriptionOrder[] = [];
+    let serial = 1;
+
+    seedPatients.forEach((patient) => {
+        const ownerName = `${patient.owner.firstName} ${patient.owner.lastName}`;
+        patient.medicalHistory
+            .filter((record) => record.prescriptions.length > 0)
+            .forEach((record) => {
+                const lines: PrescriptionOrderLine[] = record.prescriptions.map((prescription) => ({
+                    id: generateId('rxl'),
+                    medication: prescription.medication,
+                    dosage: prescription.dosage,
+                    frequency: prescription.frequency,
+                    duration: prescription.duration,
+                    instructions: prescription.instructions,
+                    quantity: parsePrescriptionQuantity(prescription.dosage),
+                    productId: productIdByName.get(prescription.medication.toLowerCase()),
+                }));
+
+                const year = Number.isNaN(new Date(record.date).getTime())
+                    ? new Date().getFullYear()
+                    : new Date(record.date).getFullYear();
+                const timestamp = `${record.date}T18:00:00.000Z`;
+
+                orders.push({
+                    id: generateId('rx'),
+                    prescriptionNumber: `ORD-${year}-${String(serial).padStart(4, '0')}`,
+                    patientId: patient.id,
+                    patientName: patient.name,
+                    ownerName,
+                    veterinarian: record.veterinarian,
+                    issueDate: record.date,
+                    diagnosis: record.diagnosis,
+                    notes: record.notes,
+                    status: 'dispensed',
+                    lines,
+                    sourceMedicalRecordId: record.id,
+                    dispensedAt: timestamp,
+                    dispensedBy: 'Historique',
+                    lastPrintedAt: timestamp,
+                    printedCount: 1,
+                });
+                serial += 1;
+            });
+    });
+
+    return orders.sort((a, b) => b.issueDate.localeCompare(a.issueDate));
+}
+
+const initialPrescriptionOrders: PrescriptionOrder[] = normalizePrescriptionOrders(
+    buildInitialPrescriptionOrders(initialPatients, initialProducts)
+);
+
 export function ClinicProvider({ children }: { children: ReactNode }) {
     const [patients, setPatients] = useState<Patient[]>(() => loadState('patients', initialPatients));
     const [appointments, setAppointments] = useState<Appointment[]>(() => loadState('appointments', initialAppointments));
@@ -115,6 +205,9 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     const [products, setProducts] = useState<Product[]>(() => loadState('products', initialProducts));
     const [stockMovements, setStockMovements] = useState<StockMovement[]>(() => loadState('stockMovements', []));
     const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>(() => loadState('activityLog', []));
+    const [prescriptionOrders, setPrescriptionOrders] = useState<PrescriptionOrder[]>(() =>
+        normalizePrescriptionOrders(loadState('prescriptionOrders', initialPrescriptionOrders))
+    );
 
     // Persist to localStorage
     useEffect(() => { storage.set('patients', patients); }, [patients]);
@@ -123,6 +216,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     useEffect(() => { storage.set('products', products); }, [products]);
     useEffect(() => { storage.set('stockMovements', stockMovements); }, [stockMovements]);
     useEffect(() => { storage.set('activityLog', activityLog); }, [activityLog]);
+    useEffect(() => { storage.set('prescriptionOrders', prescriptionOrders); }, [prescriptionOrders]);
 
     const logActivity = useCallback((action: string, entity: string, entityId: string) => {
         const entry: ActivityLogEntry = {
@@ -161,13 +255,21 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     }, [logActivity]);
 
     const addMedicalRecord = useCallback((patientId: string, record: Omit<MedicalRecord, 'id'>) => {
-        const newRecord: MedicalRecord = { ...record, id: generateId('med') };
+        const newRecord: MedicalRecord = {
+            ...record,
+            id: generateId('med'),
+            prescriptions: record.prescriptions.map((prescription) => ({
+                ...prescription,
+                id: prescription.id || generateId('presc'),
+            })),
+        };
         setPatients((prev) =>
             prev.map((p) =>
                 p.id === patientId ? { ...p, medicalHistory: [newRecord, ...p.medicalHistory] } : p
             )
         );
         logActivity('create', 'medicalRecord', newRecord.id);
+        return newRecord;
     }, [logActivity]);
 
     const addVaccination = useCallback((patientId: string, vaccination: Omit<Vaccination, 'id'>) => {
@@ -479,6 +581,153 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         );
     }, []);
 
+    // ---- PRESCRIPTIONS ----
+    const createPrescriptionOrder = useCallback((data: {
+        patientId: string;
+        patientName: string;
+        ownerName: string;
+        veterinarian: string;
+        issueDate: string;
+        diagnosis?: string;
+        notes?: string;
+        lines: Omit<PrescriptionOrderLine, 'id'>[];
+        sourceAppointmentId?: string;
+        sourceMedicalRecordId?: string;
+    }): PrescriptionOrder => {
+        if (data.sourceAppointmentId) {
+            const existing = prescriptionOrders.find((order) => order.sourceAppointmentId === data.sourceAppointmentId);
+            if (existing) return existing;
+        }
+
+        const issueYear = Number.isNaN(new Date(data.issueDate).getTime())
+            ? new Date().getFullYear()
+            : new Date(data.issueDate).getFullYear();
+        const yearPrefix = `ORD-${issueYear}-`;
+        const yearlyCount = prescriptionOrders.filter((order) => order.prescriptionNumber.startsWith(yearPrefix)).length;
+
+        const createdOrder: PrescriptionOrder = {
+            id: generateId('rx'),
+            prescriptionNumber: `${yearPrefix}${String(yearlyCount + 1).padStart(4, '0')}`,
+            patientId: data.patientId,
+            patientName: data.patientName,
+            ownerName: data.ownerName,
+            veterinarian: data.veterinarian,
+            issueDate: data.issueDate,
+            diagnosis: data.diagnosis,
+            notes: data.notes,
+            status: 'pending',
+            lines: data.lines.map((line) => ({
+                ...line,
+                id: generateId('rxl'),
+                quantity: toSafeQuantity(line.quantity),
+            })),
+            sourceAppointmentId: data.sourceAppointmentId,
+            sourceMedicalRecordId: data.sourceMedicalRecordId,
+            printedCount: 0,
+        };
+
+        setPrescriptionOrders((prev) => [createdOrder, ...prev]);
+        logActivity('create', 'prescriptionOrder', createdOrder.id);
+        return createdOrder;
+    }, [prescriptionOrders, logActivity]);
+
+    const markPrescriptionAsPrinted = useCallback((prescriptionOrderId: string) => {
+        const printedAt = new Date().toISOString();
+        setPrescriptionOrders((prev) =>
+            prev.map((order) => (
+                order.id === prescriptionOrderId
+                    ? { ...order, printedCount: order.printedCount + 1, lastPrintedAt: printedAt }
+                    : order
+            ))
+        );
+        logActivity('print', 'prescriptionOrder', prescriptionOrderId);
+    }, [logActivity]);
+
+    const markPrescriptionAsPrepared = useCallback((prescriptionOrderId: string) => {
+        const current = prescriptionOrders.find((order) => order.id === prescriptionOrderId);
+        if (!current || current.status !== 'pending') return;
+
+        setPrescriptionOrders((prev) =>
+            prev.map((order) => (
+                order.id === prescriptionOrderId
+                    ? {
+                        ...order,
+                        status: 'prepared',
+                        preparedAt: new Date().toISOString(),
+                        preparedBy: getCurrentActor(),
+                    }
+                    : order
+            ))
+        );
+        logActivity('prepare', 'prescriptionOrder', prescriptionOrderId);
+    }, [prescriptionOrders, logActivity]);
+
+    const markPrescriptionAsDispensed = useCallback((prescriptionOrderId: string) => {
+        const current = prescriptionOrders.find((order) => order.id === prescriptionOrderId);
+        if (!current) return { ok: false as const, message: 'Ordonnance introuvable.' };
+        if (current.status === 'cancelled') return { ok: false as const, message: 'Ordonnance annulee.' };
+        if (current.status === 'dispensed') return { ok: false as const, message: 'Ordonnance deja delivree.' };
+
+        const requiredByProduct = new Map<string, number>();
+        current.lines.forEach((line) => {
+            if (!line.productId) return;
+            requiredByProduct.set(line.productId, (requiredByProduct.get(line.productId) ?? 0) + toSafeQuantity(line.quantity));
+        });
+
+        for (const [productId, required] of requiredByProduct.entries()) {
+            const product = products.find((p) => p.id === productId);
+            if (!product) continue;
+            if (product.stock < required) {
+                return {
+                    ok: false as const,
+                    message: `Stock insuffisant pour ${product.name} (${product.stock} disponible, ${required} requis).`,
+                };
+            }
+        }
+
+        for (const [productId, quantity] of requiredByProduct.entries()) {
+            adjustProductStock(
+                productId,
+                -quantity,
+                'prescription',
+                `Delivrance ordonnance ${current.prescriptionNumber} - ${current.patientName}`
+            );
+        }
+
+        setPrescriptionOrders((prev) =>
+            prev.map((order) => (
+                order.id === prescriptionOrderId
+                    ? {
+                        ...order,
+                        status: 'dispensed',
+                        dispensedAt: new Date().toISOString(),
+                        dispensedBy: getCurrentActor(),
+                    }
+                    : order
+            ))
+        );
+        logActivity('dispense', 'prescriptionOrder', prescriptionOrderId);
+        return { ok: true as const };
+    }, [prescriptionOrders, products, adjustProductStock, logActivity]);
+
+    const cancelPrescriptionOrder = useCallback((prescriptionOrderId: string, reason?: string) => {
+        const current = prescriptionOrders.find((order) => order.id === prescriptionOrderId);
+        if (!current || current.status === 'dispensed') return;
+
+        setPrescriptionOrders((prev) =>
+            prev.map((order) => (
+                order.id === prescriptionOrderId
+                    ? {
+                        ...order,
+                        status: 'cancelled',
+                        cancellationReason: reason,
+                    }
+                    : order
+            ))
+        );
+        logActivity('cancel', 'prescriptionOrder', prescriptionOrderId);
+    }, [prescriptionOrders, logActivity]);
+
     const value = useMemo(
         () => ({
             patients,
@@ -487,6 +736,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             products,
             stockMovements,
             activityLog,
+            prescriptionOrders,
             addPatient,
             updatePatient,
             deletePatient,
@@ -509,13 +759,19 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             updateInvoiceData,
             recordPayment,
             recordInvoicePayment,
+            createPrescriptionOrder,
+            markPrescriptionAsPrinted,
+            markPrescriptionAsPrepared,
+            markPrescriptionAsDispensed,
+            cancelPrescriptionOrder,
         }),
         [
-            patients, appointments, invoices, products, stockMovements, activityLog,
+            patients, appointments, invoices, products, stockMovements, activityLog, prescriptionOrders,
             addPatient, updatePatient, deletePatient, addMedicalRecord, addVaccination, addAlert, removeAlert,
             addAppointment, updateAppointment, deleteAppointment, updateAppointmentStatus, updateAppointmentSchedule, cancelAppointment,
             addProduct, updateProduct, deleteProduct, adjustProductStock,
             addInvoice, updateInvoice, updateInvoiceData, recordPayment, recordInvoicePayment,
+            createPrescriptionOrder, markPrescriptionAsPrinted, markPrescriptionAsPrepared, markPrescriptionAsDispensed, cancelPrescriptionOrder,
         ]
     );
 

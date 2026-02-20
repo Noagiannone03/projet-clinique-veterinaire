@@ -8,6 +8,7 @@ import {
     TrendingDown,
     CreditCard,
     Package,
+    Pill,
     ArrowRight,
     BarChart3,
     Activity,
@@ -38,7 +39,7 @@ import { useNavigate } from 'react-router-dom';
 
 export function DirectorDashboard() {
     const { user } = useAuth();
-    const { patients, appointments, invoices, products } = useClinicData();
+    const { patients, appointments, invoices, products, prescriptionOrders } = useClinicData();
     const navigate = useNavigate();
 
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -46,6 +47,9 @@ export function DirectorDashboard() {
     const overdueInvoices = getOverdueInvoices(invoices);
     const pendingInvoices = getPendingInvoices(invoices);
     const lowStockProducts = getLowStockProducts(products);
+    const openPrescriptionOrders = prescriptionOrders.filter(
+        (order) => order.status === 'pending' || order.status === 'prepared'
+    );
 
     const totalRevenue = invoices
         .filter((i) => i.status === 'paid' || i.status === 'partial')
@@ -165,7 +169,7 @@ export function DirectorDashboard() {
                 </div>
 
                 {/* ── Alerts Panel ── */}
-                {(overdueInvoices.length > 0 || pendingInvoices.length > 0 || lowStockProducts.length > 0) && (
+                {(overdueInvoices.length > 0 || pendingInvoices.length > 0 || lowStockProducts.length > 0 || openPrescriptionOrders.length > 0) && (
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                         <div className="px-5 py-3 bg-gradient-to-r from-amber-50 to-rose-50 border-b border-amber-100 flex items-center gap-2">
                             <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -206,6 +210,18 @@ export function DirectorDashboard() {
                                         <p className="text-xs text-orange-600 truncate">{lowStockProducts.map((p) => p.name).join(', ')}</p>
                                     </div>
                                     <ArrowRight className="w-4 h-4 text-orange-300 shrink-0" />
+                                </button>
+                            )}
+                            {openPrescriptionOrders.length > 0 && (
+                                <button onClick={() => navigate('/prescriptions')} className="w-full flex items-center gap-4 px-5 py-4 hover:bg-primary-50/50 transition-colors text-left">
+                                    <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
+                                        <Pill className="w-5 h-5 text-primary-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-primary-800">{openPrescriptionOrders.length} ordonnance(s) en cours</p>
+                                        <p className="text-xs text-primary-600">A preparer ou a delivrer par l'accueil</p>
+                                    </div>
+                                    <ArrowRight className="w-4 h-4 text-primary-300 shrink-0" />
                                 </button>
                             )}
                         </div>

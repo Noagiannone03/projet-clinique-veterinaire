@@ -40,7 +40,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(() => {
         const savedRole = localStorage.getItem('vetcare_role');
         if (savedRole) {
-            return DEMO_USERS.find((u) => u.role === savedRole) || null;
+            const savedUser = DEMO_USERS.find((u) => u.role === savedRole) || null;
+            if (savedUser) {
+                localStorage.setItem('vetcare_user_name', savedUser.name);
+            }
+            return savedUser;
         }
         return null;
     });
@@ -50,12 +54,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (selectedUser) {
             setUser(selectedUser);
             localStorage.setItem('vetcare_role', role);
+            localStorage.setItem('vetcare_user_name', selectedUser.name);
         }
     }, []);
 
     const logout = useCallback(() => {
         setUser(null);
         localStorage.removeItem('vetcare_role');
+        localStorage.removeItem('vetcare_user_name');
     }, []);
 
     return (
