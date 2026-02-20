@@ -122,7 +122,10 @@ export function Appointments() {
     const toast = useToast();
     const calendarRef = useRef<FullCalendar>(null);
 
-    /* ── Data ── */
+    const isVet = role === 'veterinarian';
+    const isAssistant = role === 'assistant';
+
+    /* -- Data -- */
     const activeAppointments = useMemo(
         () => appointments.filter((a) => a.status !== 'cancelled'),
         [appointments]
@@ -132,19 +135,20 @@ export function Appointments() {
         [activeAppointments]
     );
     const preferredVetName = useMemo(
-        () => (role === 'veterinarian' ? getPreferredVetName(user?.name, availableVets) : null),
-        [role, user, availableVets]
+        () => (isVet ? getPreferredVetName(user?.name, availableVets) : null),
+        [isVet, user, availableVets]
     );
 
-    /* ── State ── */
-    const [view, setView] = useState<CalendarView>(role === 'veterinarian' ? 'timeGridDay' : 'timeGridWeek');
+    /* -- State -- */
+    // Change 1: Both vet and assistant default to week view
+    const [view, setView] = useState<CalendarView>('timeGridWeek');
     const [date, setDate] = useState(new Date());
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [vetFilter, setVetFilter] = useState<string>(() =>
-        role === 'veterinarian' ? preferredVetName ?? 'all' : 'all'
+        isVet ? preferredVetName ?? 'all' : 'all'
     );
     const [searchQuery, setSearchQuery] = useState('');
-    const [focusMode, setFocusMode] = useState(role === 'veterinarian');
+    const [focusMode, setFocusMode] = useState(isVet);
     const [showNewAppointment, setShowNewAppointment] = useState(false);
     const [showEditAppointment, setShowEditAppointment] = useState(false);
     const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -154,7 +158,7 @@ export function Appointments() {
         revert: () => void; description: string;
     } | null>(null);
 
-    /* ── Derived ── */
+    /* -- Derived -- */
     const normalizedSearch = searchQuery.trim().toLowerCase();
     const filteredAppointments = useMemo(() =>
         activeAppointments.filter((a) => {
@@ -168,30 +172,30 @@ export function Appointments() {
         [activeAppointments, normalizedSearch, vetFilter]
     );
 
-    const calendarSource = focusMode && role === 'veterinarian' ? activeAppointments : filteredAppointments;
+    const calendarSource = focusMode && isVet ? activeAppointments : filteredAppointments;
 
     const events = useMemo(() => calendarSource.map((a) => {
         const start = `${a.date}T${a.time}:00`;
         const endDate = new Date(`${a.date}T${a.time}:00`);
         endDate.setMinutes(endDate.getMinutes() + a.duration);
-        const isDimmed = focusMode && role === 'veterinarian' && !!preferredVetName && a.veterinarian !== preferredVetName;
+        const isDimmed = focusMode && isVet && !!preferredVetName && a.veterinarian !== preferredVetName;
         return {
             id: a.id, title: a.patientName, start,
             end: format(endDate, "yyyy-MM-dd'T'HH:mm:ss"),
             extendedProps: { ...a, isDimmed },
             classNames: isDimmed ? ['opacity-20', 'grayscale'] : [],
         };
-    }), [calendarSource, focusMode, preferredVetName, role]);
+    }), [calendarSource, focusMode, preferredVetName, isVet]);
 
     const todayKey = format(new Date(), 'yyyy-MM-dd');
     const selectedDateKey = format(date, 'yyyy-MM-dd');
 
     const metricToday = useMemo(() => {
         const base = activeAppointments.filter((a) => a.date === todayKey);
-        return role === 'veterinarian' && preferredVetName
+        return isVet && preferredVetName
             ? base.filter((a) => a.veterinarian === preferredVetName)
             : base;
-    }, [activeAppointments, preferredVetName, role, todayKey]);
+    }, [activeAppointments, preferredVetName, isVet, todayKey]);
 
     const waitingRoom = useMemo(() =>
         activeAppointments
@@ -208,13 +212,13 @@ export function Appointments() {
     );
 
     const nextVetAppt = useMemo(() => {
-        if (role !== 'veterinarian' || !preferredVetName) return null;
+        if (!isVet || !preferredVetName) return null;
         const now = new Date();
         return activeAppointments
             .filter((a) => a.veterinarian === preferredVetName)
             .sort((a, b) => toAppointmentDateTime(a).getTime() - toAppointmentDateTime(b).getTime())
             .find((a) => toAppointmentDateTime(a).getTime() >= now.getTime()) ?? null;
-    }, [activeAppointments, preferredVetName, role]);
+    }, [activeAppointments, preferredVetName, isVet]);
 
     const selectedAppt = useMemo(
         () => appointments.find((a) => a.id === selectedId) ?? null,
@@ -224,6 +228,24 @@ export function Appointments() {
         () => patients.find((p) => p.id === selectedAppt?.patientId) ?? null,
         [patients, selectedAppt]
     );
+
+    /* -- Assistant counter bar: today counts by status -- */
+    const todayCounts = useMemo(() => {
+        const todayAppts = activeAppointments.filter((a) => a.date === todayKey);
+        return {
+            scheduled: todayAppts.filter((a) => a.status === 'scheduled').length,
+            arrived: todayAppts.filter((a) => a.status === 'arrived').length,
+            inProgress: todayAppts.filter((a) => a.status === 'in-progress').length,
+        };
+    }, [activeAppointments, todayKey]);
+
+    /* -- Vet today stats -- */
+    const vetTodayStats = useMemo(() => {
+        const total = metricToday.length;
+        const completed = metricToday.filter((a) => a.status === 'completed').length;
+        const remaining = total - completed;
+        return { total, completed, remaining };
+    }, [metricToday]);
 
     const createAutoInvoiceFromAppointment = (appointment: Appointment) => {
         const patient = patients.find((p) => p.id === appointment.patientId);
@@ -245,11 +267,11 @@ export function Appointments() {
         });
     };
 
-    /* ── Actions (role-aware) ── */
+    /* -- Actions (role-aware) -- */
     const getActions = (apt: Appointment): AppointmentAction[] => {
         const a: AppointmentAction[] = [];
 
-        if (role === 'veterinarian') {
+        if (isVet) {
             // Vet: calendar is read-only planning overview — no status actions here
             // Consultations are managed from the dashboard
             return a;
@@ -270,7 +292,7 @@ export function Appointments() {
         return 'bg-secondary-600 hover:bg-secondary-700 text-white';
     };
 
-    /* ── Calendar helpers ── */
+    /* -- Calendar helpers -- */
     const syncDate = () => { const d = calendarRef.current?.getApi().getDate(); if (d) setDate(d); };
     const handlePrev = () => { calendarRef.current?.getApi().prev(); syncDate(); };
     const handleNext = () => { calendarRef.current?.getApi().next(); syncDate(); };
@@ -307,22 +329,23 @@ export function Appointments() {
         );
     };
 
-    /* ══════════════════════════════════════════════════════════
+    /* ======================================================================
        RENDER — layout pleine hauteur, zero scroll de page
-    ══════════════════════════════════════════════════════════ */
+       Role-adapted: VET = "Mon planning" / ASSISTANT = "Agenda"
+    ====================================================================== */
     return (
         <div className="flex flex-col overflow-hidden bg-slate-100" style={{ height: '100vh' }}>
 
-            {/* ── Barre de contrôles ─────────────────────────────── */}
+            {/* -- Barre de controles ---------------------------------------- */}
             <div className="flex-shrink-0 h-14 flex items-center gap-2 px-4 bg-white border-b border-slate-200 z-20">
 
                 {/* Titre + date */}
                 <div className="flex items-center gap-2.5 flex-shrink-0">
-                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${role === 'veterinarian' ? 'bg-primary-50' : 'bg-secondary-50'}`}>
-                        <CalendarIcon className={`h-4 w-4 ${role === 'veterinarian' ? 'text-primary-600' : 'text-secondary-600'}`} />
+                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center ${isVet ? 'bg-primary-50' : 'bg-secondary-50'}`}>
+                        <CalendarIcon className={`h-4 w-4 ${isVet ? 'text-primary-600' : 'text-secondary-600'}`} />
                     </div>
                     <div className="leading-tight hidden sm:block">
-                        <p className="text-sm font-bold text-slate-900">{role === 'veterinarian' ? 'Mon planning' : 'Agenda'}</p>
+                        <p className="text-sm font-bold text-slate-900">{isVet ? 'Mon planning' : 'Agenda'}</p>
                         <p className="text-[10px] text-slate-400 capitalize">
                             {format(date, 'EEEE dd MMM', { locale: fr })} · {metricToday.length} RDV
                         </p>
@@ -354,10 +377,10 @@ export function Appointments() {
                     ))}
                 </div>
 
-                {/* Filtres vétérinaires */}
+                {/* Filtres veterinaires — Change 5: verified, vet hides "Tous", assistant shows all */}
                 {availableVets.length > 0 && (
                     <div className="flex items-center gap-1 flex-shrink-0">
-                        {role !== 'veterinarian' && (
+                        {isAssistant && (
                             <button type="button" onClick={() => setVetFilter('all')}
                                 className={`rounded-xl px-2.5 py-1.5 text-xs font-bold transition ${vetFilter === 'all' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
                                 Tous
@@ -373,7 +396,7 @@ export function Appointments() {
                                 </button>
                             );
                         })}
-                        {role === 'veterinarian' && (
+                        {isVet && (
                             <button type="button" title={focusMode ? 'Désactiver le focus' : 'Activer le focus'}
                                 onClick={() => setFocusMode((s) => !s)}
                                 className={`h-8 w-8 rounded-xl flex items-center justify-center transition ${focusMode ? 'bg-secondary-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
@@ -389,65 +412,120 @@ export function Appointments() {
                 </div>
 
                 {/* Nouveau RDV — assistant only */}
-                {role === 'assistant' && (
+                {isAssistant && (
                     <Button icon={<Plus className="h-4 w-4" />} onClick={() => setShowNewAppointment(true)} className="flex-shrink-0">
                         <span className="hidden sm:inline">Nouveau RDV</span>
                     </Button>
                 )}
             </div>
 
-            {/* ── Corps pleine hauteur ─────────────────────────────── */}
+            {/* -- Corps pleine hauteur ---------------------------------------- */}
             <div className="flex-1 min-h-0 flex overflow-hidden">
 
-                {/* ══ PANNEAU GAUCHE ══ */}
+                {/* == PANNEAU GAUCHE == */}
                 <aside className="w-[272px] flex-shrink-0 flex flex-col bg-white border-r border-slate-200 overflow-hidden">
 
-                    {/* Section rôle : salle d'attente ou prochain patient */}
-                    {role === 'assistant' && (
-                        <div className="flex-shrink-0 border-b border-slate-100">
-                            <div className="flex items-center justify-between px-4 pt-3 pb-2">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="h-2 w-2 rounded-full bg-secondary-500 animate-pulse" />
-                                    <span className="text-xs font-bold text-secondary-900">Salle d'attente</span>
+                    {/* ============================================================
+                       VET SIDEBAR — "Mon planning": stats + prochain patient
+                    ============================================================ */}
+                    {isVet && (
+                        <>
+                            {/* Aujourd'hui stats summary */}
+                            <div className="flex-shrink-0 border-b border-slate-100 px-3 pt-3 pb-3">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-primary-500 mb-2">Aujourd'hui</p>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1 rounded-xl bg-primary-50 px-2.5 py-2 text-center">
+                                        <p className="text-lg font-bold text-primary-800 leading-none">{vetTodayStats.total}</p>
+                                        <p className="text-[9px] text-primary-600 font-semibold mt-0.5">RDV</p>
+                                    </div>
+                                    <div className="flex-1 rounded-xl bg-emerald-50 px-2.5 py-2 text-center">
+                                        <p className="text-lg font-bold text-emerald-800 leading-none">{vetTodayStats.completed}</p>
+                                        <p className="text-[9px] text-emerald-600 font-semibold mt-0.5">Terminés</p>
+                                    </div>
+                                    <div className="flex-1 rounded-xl bg-amber-50 px-2.5 py-2 text-center">
+                                        <p className="text-lg font-bold text-amber-800 leading-none">{vetTodayStats.remaining}</p>
+                                        <p className="text-[9px] text-amber-600 font-semibold mt-0.5">Restants</p>
+                                    </div>
                                 </div>
-                                <span className="text-[10px] font-bold bg-secondary-100 text-secondary-700 rounded-full px-2 py-0.5">
-                                    {waitingRoom.length}
-                                </span>
                             </div>
-                            <div className="px-3 pb-3 space-y-1 max-h-36 overflow-y-auto">
-                                {waitingRoom.length === 0 ? (
-                                    <p className="text-xs text-slate-400 text-center py-2 italic">Aucun patient en attente</p>
-                                ) : waitingRoom.map((apt) => (
-                                    <button key={apt.id} type="button" onClick={() => setSelectedId(apt.id)}
-                                        className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left transition ${selectedId === apt.id ? 'bg-secondary-50 ring-1 ring-secondary-300' : 'hover:bg-slate-50'}`}>
-                                        <span className="text-base">{speciesEmoji[apt.species]}</span>
+
+                            {/* Prochain patient card */}
+                            {nextVetAppt && (
+                                <div className="flex-shrink-0 border-b border-slate-100 px-3 pt-3 pb-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-primary-500 mb-2">Prochain patient</p>
+                                    <button type="button" onClick={() => setSelectedId(nextVetAppt.id)}
+                                        className="w-full flex items-center gap-3 rounded-xl bg-primary-50 border border-primary-200 px-3 py-2.5 text-left hover:bg-primary-100 transition">
+                                        <span className="text-2xl">{speciesEmoji[nextVetAppt.species]}</span>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-slate-900 truncate">{apt.patientName}</p>
-                                            <p className="text-[11px] text-slate-400">{apt.ownerName}</p>
+                                            <p className="font-bold text-primary-900 text-sm">{nextVetAppt.patientName}</p>
+                                            <p className="text-[11px] text-primary-600">{format(toAppointmentDateTime(nextVetAppt), 'HH:mm')} · {typeInfo[nextVetAppt.type].label}</p>
                                         </div>
-                                        <span className="text-xs font-bold text-secondary-700 flex-shrink-0">{apt.time}</span>
+                                        <ArrowRight className="h-4 w-4 text-primary-400 flex-shrink-0" />
                                     </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {role === 'veterinarian' && nextVetAppt && (
-                        <div className="flex-shrink-0 border-b border-slate-100 px-3 pt-3 pb-3">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-primary-500 mb-2">Prochain patient</p>
-                            <button type="button" onClick={() => setSelectedId(nextVetAppt.id)}
-                                className="w-full flex items-center gap-3 rounded-xl bg-primary-50 border border-primary-200 px-3 py-2.5 text-left hover:bg-primary-100 transition">
-                                <span className="text-2xl">{speciesEmoji[nextVetAppt.species]}</span>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-primary-900 text-sm">{nextVetAppt.patientName}</p>
-                                    <p className="text-[11px] text-primary-600">{format(toAppointmentDateTime(nextVetAppt), 'HH:mm')} · {typeInfo[nextVetAppt.type].label}</p>
                                 </div>
-                                <ArrowRight className="h-4 w-4 text-primary-400 flex-shrink-0" />
-                            </button>
-                        </div>
+                            )}
+                        </>
                     )}
 
-                    {/* Timeline */}
+                    {/* ============================================================
+                       ASSISTANT SIDEBAR — "Agenda": salle d'attente + counter bar
+                    ============================================================ */}
+                    {isAssistant && (
+                        <>
+                            {/* Salle d'attente */}
+                            <div className="flex-shrink-0 border-b border-slate-100">
+                                <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="h-2 w-2 rounded-full bg-secondary-500 animate-pulse" />
+                                        <span className="text-xs font-bold text-secondary-900">Salle d'attente</span>
+                                    </div>
+                                    <span className="text-[10px] font-bold bg-secondary-100 text-secondary-700 rounded-full px-2 py-0.5">
+                                        {waitingRoom.length}
+                                    </span>
+                                </div>
+                                <div className="px-3 pb-3 space-y-1 max-h-36 overflow-y-auto">
+                                    {waitingRoom.length === 0 ? (
+                                        <p className="text-xs text-slate-400 text-center py-2 italic">Aucun patient en attente</p>
+                                    ) : waitingRoom.map((apt) => (
+                                        <button key={apt.id} type="button" onClick={() => setSelectedId(apt.id)}
+                                            className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2 text-left transition ${selectedId === apt.id ? 'bg-secondary-50 ring-1 ring-secondary-300' : 'hover:bg-slate-50'}`}>
+                                            <span className="text-base">{speciesEmoji[apt.species]}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-slate-900 truncate">{apt.patientName}</p>
+                                                <p className="text-[11px] text-slate-400">{apt.ownerName}</p>
+                                            </div>
+                                            <span className="text-xs font-bold text-secondary-700 flex-shrink-0">{apt.time}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Compact counter bar — today status counts */}
+                            <div className="flex-shrink-0 border-b border-slate-100 px-3 py-2">
+                                <div className="flex items-center justify-center gap-3">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="h-2 w-2 rounded-full bg-primary-400" />
+                                        <span className="text-[11px] font-bold text-slate-600">{todayCounts.scheduled}</span>
+                                        <span className="text-[10px] text-slate-400">planifiés</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="h-2 w-2 rounded-full bg-secondary-500" />
+                                        <span className="text-[11px] font-bold text-slate-600">{todayCounts.arrived}</span>
+                                        <span className="text-[10px] text-slate-400">arrivés</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                                        <span className="text-[11px] font-bold text-slate-600">{todayCounts.inProgress}</span>
+                                        <span className="text-[10px] text-slate-400">en cours</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* ============================================================
+                       SHARED — Timeline
+                    ============================================================ */}
                     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                         <div className="flex-shrink-0 flex items-center justify-between px-4 pt-3 pb-2">
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -480,7 +558,9 @@ export function Appointments() {
                         </div>
                     </div>
 
-                    {/* ── Fiche du RDV sélectionné — TOUJOURS EN BAS, TOUJOURS VISIBLE ── */}
+                    {/* ============================================================
+                       SHARED — Detail panel (role-adapted content)
+                    ============================================================ */}
                     <div
                         className="flex-shrink-0 overflow-hidden transition-all"
                         style={{
@@ -561,8 +641,28 @@ export function Appointments() {
                                     </p>
                                 )}
 
-                                {/* Action principale */}
-                                {getActions(selectedAppt).map((action) => (
+                                {/* VET — Read-only status badge (replaces the empty action area) */}
+                                {isVet && selectedAppt.status !== 'cancelled' && (
+                                    <div className="flex items-center justify-center">
+                                        <span className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold ${statusColors[selectedAppt.status].bg} ${statusColors[selectedAppt.status].text}`}>
+                                            <span className={`h-2 w-2 rounded-full ${statusColors[selectedAppt.status].dot}`} />
+                                            {statusLabel[selectedAppt.status]}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* VET — Cancelled status badge */}
+                                {isVet && selectedAppt.status === 'cancelled' && (
+                                    <div className="flex items-center justify-center">
+                                        <span className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold bg-rose-50 text-rose-700">
+                                            <span className="h-2 w-2 rounded-full bg-rose-400" />
+                                            Annulé
+                                        </span>
+                                    </div>
+                                )}
+
+                                {/* ASSISTANT — Action buttons */}
+                                {isAssistant && getActions(selectedAppt).map((action) => (
                                     <button key={action.label} type="button" onClick={action.onClick}
                                         className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition ${actionBtnClass(selectedAppt)}`}>
                                         <action.icon className="h-4 w-4" />
@@ -570,8 +670,8 @@ export function Appointments() {
                                     </button>
                                 ))}
 
-                                {/* Modifier / Annuler — assistant only */}
-                                {role === 'assistant' && selectedAppt.status !== 'completed' && selectedAppt.status !== 'cancelled' && (
+                                {/* ASSISTANT — Modifier / Annuler */}
+                                {isAssistant && selectedAppt.status !== 'completed' && selectedAppt.status !== 'cancelled' && (
                                     <div className="flex gap-1.5">
                                         <button type="button" onClick={() => setShowEditAppointment(true)}
                                             className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-2 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-100 transition">
@@ -588,7 +688,7 @@ export function Appointments() {
                     </div>
                 </aside>
 
-                {/* ══ CALENDRIER ══ */}
+                {/* == CALENDRIER == */}
                 <div className="flex-1 min-w-0 overflow-hidden p-3">
                     <div className="h-full rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                         <FullCalendar
@@ -598,8 +698,9 @@ export function Appointments() {
                             initialView={view}
                             headerToolbar={false}
                             height="100%"
-                            editable={role === 'assistant'}
-                            selectable={role === 'assistant'}
+                            /* Change 4: Vet = read-only, Assistant = full management */
+                            editable={isAssistant}
+                            selectable={isAssistant}
                             selectMirror
                             dayMaxEvents
                             weekends={false}
@@ -608,7 +709,11 @@ export function Appointments() {
                             allDaySlot={false}
                             nowIndicator
                             events={events}
-                            select={(info: DateSelectArg) => { setDate(info.start); setShowNewAppointment(true); }}
+                            /* Change 6: select only triggers new appointment for assistant */
+                            select={(info: DateSelectArg) => {
+                                setDate(info.start);
+                                if (isAssistant) { setShowNewAppointment(true); }
+                            }}
                             eventClick={(info: EventClickArg) => setSelectedId(info.event.id)}
                             eventContent={renderEventContent}
                             eventDrop={(info: EventDropArg) => queueMove(info.event, info.revert)}
@@ -623,23 +728,28 @@ export function Appointments() {
                 </div>
             </div>
 
-            {/* ── Modals ────────────────────────────────────────────── */}
-            <AppointmentForm
-                isOpen={showNewAppointment}
-                onClose={() => setShowNewAppointment(false)}
-                onSubmit={(data, force = false) => {
-                    const p = patients.find((pt) => pt.id === data.patientId);
-                    if (!p) { toast.error('Patient introuvable'); return { ok: false, message: 'Patient introuvable' }; }
-                    const r = addAppointment({ ...data, patientName: p.name, ownerName: `${p.owner.firstName} ${p.owner.lastName}`, species: p.species, duration: Number(data.duration) }, force);
-                    if (!r.ok) { toast.error(r.message); return r; }
-                    toast.success('Rendez-vous créé');
-                    setShowNewAppointment(false);
-                    return r;
-                }}
-                defaultDate={format(date, 'yyyy-MM-dd')}
-            />
+            {/* -- Modals — assistant only ----------------------------------- */}
 
-            {selectedAppt && (
+            {/* Change 6: New appointment form only renders for assistant */}
+            {isAssistant && (
+                <AppointmentForm
+                    isOpen={showNewAppointment}
+                    onClose={() => setShowNewAppointment(false)}
+                    onSubmit={(data, force = false) => {
+                        const p = patients.find((pt) => pt.id === data.patientId);
+                        if (!p) { toast.error('Patient introuvable'); return { ok: false, message: 'Patient introuvable' }; }
+                        const r = addAppointment({ ...data, patientName: p.name, ownerName: `${p.owner.firstName} ${p.owner.lastName}`, species: p.species, duration: Number(data.duration) }, force);
+                        if (!r.ok) { toast.error(r.message); return r; }
+                        toast.success('Rendez-vous créé');
+                        setShowNewAppointment(false);
+                        return r;
+                    }}
+                    defaultDate={format(date, 'yyyy-MM-dd')}
+                />
+            )}
+
+            {/* Change 6: Edit form only renders for assistant */}
+            {isAssistant && selectedAppt && (
                 <AppointmentForm
                     isOpen={showEditAppointment}
                     onClose={() => setShowEditAppointment(false)}
@@ -656,7 +766,8 @@ export function Appointments() {
                 />
             )}
 
-            {selectedAppt && showCancelDialog && (
+            {/* Change 6: Cancel dialog only renders for assistant */}
+            {isAssistant && selectedAppt && showCancelDialog && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowCancelDialog(false)}>
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
                     <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>

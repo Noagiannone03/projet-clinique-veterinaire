@@ -27,6 +27,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
 import type { Appointment, Patient } from '../types';
 import type { AppointmentFormData, PatientFormData } from '../schemas';
+import { getFallbackPatientPhotoUrl, getPatientPhotoUrl } from '../utils/patientPhotos';
 
 type WorkflowFilter = 'all' | 'today' | 'alerts' | 'vaccines' | 'no-upcoming';
 type SpeciesFilter = 'all' | Patient['species'];
@@ -70,12 +71,6 @@ function getPriorityLabel(hasHighAlert: boolean, hasToday: boolean, hasVaccineDu
     if (hasVaccineDue) return { label: 'Vaccin a relancer', badge: 'warning' };
     if (!hasUpcoming) return { label: 'A planifier', badge: 'neutral' };
     return { label: 'Suivi normal', badge: 'neutral' };
-}
-
-function getPatientPhotoUrl(patient: Patient): string {
-    const keyword = patient.species === 'other' ? 'pet' : patient.species;
-    const lock = patient.id.replace(/\D/g, '').slice(-6) || '42';
-    return `https://loremflickr.com/640/420/${keyword}?lock=${lock}`;
 }
 
 export function Patients() {
@@ -355,7 +350,7 @@ export function Patients() {
                                 const hasVaccineDue = hasUpcomingVaccination(patient, 60);
                                 const hasToday = hasTodayAppointment.get(patient.id) ?? false;
                                 const priority = getPriorityLabel(hasHighAlert, hasToday, hasVaccineDue, !!nextAppointment);
-                                const photoUrl = getPatientPhotoUrl(patient);
+                                const photoUrl = getPatientPhotoUrl(patient.species, patient.id);
 
                                     return (
                                         <article
@@ -370,7 +365,8 @@ export function Patients() {
                                                         loading="lazy"
                                                         className="h-full w-full object-cover"
                                                         onError={(event) => {
-                                                            event.currentTarget.src = `https://picsum.photos/seed/${patient.id}-pet/640/420`;
+                                                            event.currentTarget.onerror = null;
+                                                            event.currentTarget.src = getFallbackPatientPhotoUrl(patient.species);
                                                         }}
                                                     />
                                                     <div className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">

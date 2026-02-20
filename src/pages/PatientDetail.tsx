@@ -14,6 +14,7 @@ import {
 import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { PatientFormData, MedicalRecordFormData, VaccinationFormData, AppointmentFormData } from '../schemas';
+import { getFallbackPatientPhotoUrl, getPatientPhotoUrl } from '../utils/patientPhotos';
 
 const speciesIcons = { dog: Dog, cat: Cat, bird: Bird, rabbit: Rabbit, other: Dog };
 const speciesLabels = { dog: 'Chien', cat: 'Chat', bird: 'Oiseau', rabbit: 'Lapin', other: 'Autre' };
@@ -25,12 +26,6 @@ function calculateAge(birthDate: string): string {
     const months = differenceInMonths(now, birth) % 12;
     if (years === 0) return `${months} mois`;
     return years === 1 ? `${years} an` : `${years} ans`;
-}
-
-function getPatientPhotoUrl(species: keyof typeof speciesIcons, patientId: string): string {
-    const keyword = species === 'other' ? 'pet' : species;
-    const lock = patientId.replace(/\D/g, '').slice(-6) || '42';
-    return `https://loremflickr.com/640/420/${keyword}?lock=${lock}`;
 }
 
 export function PatientDetail() {
@@ -175,7 +170,7 @@ export function PatientDetail() {
                                 loading="lazy"
                                 onError={(event) => {
                                     event.currentTarget.onerror = null;
-                                    event.currentTarget.src = `https://picsum.photos/seed/${patient.id}-pet-detail/640/420`;
+                                    event.currentTarget.src = getFallbackPatientPhotoUrl(patient.species);
                                 }}
                             />
                             <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-white/90 px-2 py-1 text-[11px] font-semibold text-slate-700">
