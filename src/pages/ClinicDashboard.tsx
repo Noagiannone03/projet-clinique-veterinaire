@@ -28,6 +28,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AppointmentForm, InvoiceForm } from '../components/forms';
 import { ConsultationPanel } from '../components/consultation/ConsultationPanel';
+import { AppointmentBookingPanel } from '../components/appointment/AppointmentBookingPanel';
 import { useToast } from '../components/ui/Toast';
 import type { Appointment } from '../types';
 import type { AppointmentFormData, InvoiceFormData, MedicalRecordFormData } from '../schemas';
@@ -847,7 +848,12 @@ export function ClinicDashboard() {
             </div>
 
             {/* Modals */}
-            <AppointmentForm isOpen={showNewAppointment} onClose={() => setShowNewAppointment(false)} onSubmit={handleNewAppointment} defaultDate={today} />
+            <AppointmentBookingPanel
+                isOpen={showNewAppointment}
+                onClose={() => setShowNewAppointment(false)}
+                onBooked={() => toast.success('RDV cree')}
+                defaultDate={today}
+            />
             <InvoiceForm
                 isOpen={showInvoiceForm}
                 onClose={() => {

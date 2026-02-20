@@ -16,6 +16,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AppointmentForm } from '../components/forms';
+import { AppointmentBookingPanel } from '../components/appointment/AppointmentBookingPanel';
 import { Button, SearchInput } from '../components/ui';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useToast } from '../components/ui/Toast';
@@ -730,20 +731,12 @@ export function Appointments() {
 
             {/* -- Modals — assistant only ----------------------------------- */}
 
-            {/* Change 6: New appointment form only renders for assistant */}
+            {/* New appointment: full booking panel for assistant */}
             {isAssistant && (
-                <AppointmentForm
+                <AppointmentBookingPanel
                     isOpen={showNewAppointment}
                     onClose={() => setShowNewAppointment(false)}
-                    onSubmit={(data, force = false) => {
-                        const p = patients.find((pt) => pt.id === data.patientId);
-                        if (!p) { toast.error('Patient introuvable'); return { ok: false, message: 'Patient introuvable' }; }
-                        const r = addAppointment({ ...data, patientName: p.name, ownerName: `${p.owner.firstName} ${p.owner.lastName}`, species: p.species, duration: Number(data.duration) }, force);
-                        if (!r.ok) { toast.error(r.message); return r; }
-                        toast.success('Rendez-vous créé');
-                        setShowNewAppointment(false);
-                        return r;
-                    }}
+                    onBooked={() => toast.success('Rendez-vous cree')}
                     defaultDate={format(date, 'yyyy-MM-dd')}
                 />
             )}
