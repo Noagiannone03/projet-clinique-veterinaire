@@ -30,7 +30,7 @@ import { InvoiceForm } from '../components/forms';
 import { ConsultationPanel } from '../components/consultation/ConsultationPanel';
 import { AppointmentBookingPanel } from '../components/appointment/AppointmentBookingPanel';
 import { useToast } from '../components/ui/Toast';
-import type { Appointment } from '../types';
+import type { Appointment, Invoice } from '../types';
 import type { InvoiceFormData, MedicalRecordFormData } from '../schemas';
 
 // ─── Shared helpers ──────────────────────────────────────────
@@ -65,6 +65,17 @@ const appointmentDefaultPrice: Record<Appointment['type'], number> = {
     'follow-up': 35,
     emergency: 95,
 };
+
+function getInvoicePaidAmount(invoice: Invoice): number {
+    const paidByPayments = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const paidByPlan = invoice.paymentPlan
+        ? invoice.paymentPlan.paidInstallments * invoice.paymentPlan.installmentAmount
+        : 0;
+    const legacyPaidFallback = invoice.status === 'paid' && paidByPayments === 0 && paidByPlan === 0
+        ? invoice.total
+        : 0;
+    return Math.min(Math.max(paidByPayments, paidByPlan, legacyPaidFallback), invoice.total);
+}
 
 const stepConfig: { key: PipelineStatus; label: string; icon: typeof Clock; color: string; bg: string }[] = [
     { key: 'scheduled', label: 'Planifié', icon: Clock, color: 'text-primary-600', bg: 'bg-primary-500' },
@@ -200,19 +211,30 @@ export function ClinicDashboard() {
         [appointments, today]
     );
 
-    const invoicedAppointmentSet = useMemo(() =>
-        new Set(invoices.map((inv) => inv.sourceAppointmentId).filter((id): id is string => !!id)),
-        [invoices]
+    const invoicesByAppointment = useMemo(() => {
+        const map = new Map<string, Invoice>();
+        invoices.forEach((invoice) => {
+            if (invoice.sourceAppointmentId) map.set(invoice.sourceAppointmentId, invoice);
+        });
+        return map;
+    }, [invoices]);
+    const getInvoiceForAppointment = (appointment: Appointment): Invoice | undefined => {
+        const direct = invoicesByAppointment.get(appointment.id);
+        if (direct) return direct;
+        return invoices.find((invoice) =>
+            invoice.patientId === appointment.patientId
+            && invoice.date === appointment.date
+            && invoice.source !== 'counter_sale'
+        );
+    };
+    const pendingBillingAppointments = useMemo(() =>
+        todayAppointments.filter((appointment) => {
+            if (appointment.status !== 'completed') return false;
+            const invoice = getInvoiceForAppointment(appointment);
+            return !invoice || invoice.status !== 'paid';
+        }),
+        [todayAppointments, invoicesByAppointment, invoices]
     );
-    const legacyInvoicedSet = useMemo(() =>
-        new Set(invoices.map((inv) => `${inv.patientId}-${inv.date}`)),
-        [invoices]
-    );
-
-    const isUnbilled = (a: Appointment) =>
-        a.status === 'completed'
-        && !invoicedAppointmentSet.has(a.id)
-        && !legacyInvoicedSet.has(`${a.patientId}-${a.date}`);
 
     const patientAlertsMap = useMemo(() => {
         const map = new Map<string, { description: string; severity: string }[]>();
@@ -226,7 +248,7 @@ export function ClinicDashboard() {
         arrived: todayAppointments.filter((a) => a.status === 'arrived').length,
         inProgress: todayAppointments.filter((a) => a.status === 'in-progress').length,
         completed: todayAppointments.filter((a) => a.status === 'completed').length,
-        toBill: todayAppointments.filter(isUnbilled).length,
+        toBill: pendingBillingAppointments.length,
     };
 
     const inProgressAppointment = todayAppointments.find((a) => a.status === 'in-progress') ?? null;
@@ -368,7 +390,10 @@ export function ClinicDashboard() {
     const renderTimelineCard = (apt: Appointment, viewMode: 'vet' | 'assistant') => {
         const alerts = patientAlertsMap.get(apt.patientId);
         const highAlerts = alerts?.filter((a) => a.severity === 'high') || [];
-        const unbilled = isUnbilled(apt);
+        const linkedInvoice = apt.status === 'completed' ? getInvoiceForAppointment(apt) : undefined;
+        const unbilled = apt.status === 'completed' && !linkedInvoice;
+        const needsPayment = apt.status === 'completed' && !!linkedInvoice && linkedInvoice.status !== 'paid';
+        const isCompletedSettled = apt.status === 'completed' && !!linkedInvoice && linkedInvoice.status === 'paid';
         const isActive = apt.status === 'in-progress';
 
         // Determine single contextual action based on role
@@ -411,15 +436,24 @@ export function ClinicDashboard() {
                 actionColor = 'bg-emerald-600 hover:bg-emerald-700 text-white';
                 onAction = () => {
                     const invoice = createAutoInvoiceFromAppointment(apt);
-                    if (invoice) toast.success(`Facture ${invoice.invoiceNumber} generee`);
+                    if (invoice) {
+                        toast.success(`Facture ${invoice.invoiceNumber} generee`);
+                        navigate(`/billing?pay=${invoice.id}`);
+                    }
                 };
+            } else if (apt.status === 'completed' && needsPayment && linkedInvoice) {
+                actionLabel = linkedInvoice.status === 'partial' ? 'Encaisser le solde' : 'Encaisser paiement';
+                actionIcon = <CreditCard className="w-4 h-4" />;
+                actionColor = 'bg-primary-600 hover:bg-primary-700 text-white';
+                onAction = () => navigate(`/billing?pay=${linkedInvoice.id}`);
             } else if (apt.status === 'completed') {
-                statusBadge = <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold">Facture</span>;
+                statusBadge = <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold">Paye</span>;
             }
         }
 
         // Status dot color
-        const dotColor = apt.status === 'completed' ? 'bg-emerald-400' :
+        const dotColor = (apt.status === 'completed' && (unbilled || needsPayment)) ? 'bg-orange-400' :
+            apt.status === 'completed' ? 'bg-emerald-400' :
             apt.status === 'in-progress' ? 'bg-amber-400 animate-pulse' :
                 apt.status === 'arrived' ? 'bg-secondary-400' :
                     'bg-slate-300';
@@ -438,8 +472,10 @@ export function ClinicDashboard() {
                 {/* Card */}
                 <div className={`flex-1 mb-4 rounded-2xl border p-4 transition-all ${isActive
                     ? 'border-amber-300 bg-amber-50/50 shadow-md shadow-amber-100/50'
-                    : apt.status === 'completed'
+                    : isCompletedSettled
                         ? 'border-slate-100 bg-white/60 opacity-75'
+                        : (apt.status === 'completed' && (unbilled || needsPayment))
+                            ? 'border-orange-200 bg-orange-50/50 shadow-sm'
                         : highAlerts.length > 0
                             ? 'border-rose-200 bg-white shadow-sm'
                             : 'border-slate-200 bg-white shadow-sm hover:shadow-md'
@@ -772,38 +808,54 @@ export function ClinicDashboard() {
                                                     )}
                                                 </div>
 
-                                                {/* A facturer */}
+                                                {/* Paiements a traiter */}
                                                 <div>
                                                     <div className="flex items-center gap-2 mb-3">
                                                         <Receipt className="w-5 h-5 text-emerald-600" />
-                                                        <h3 className="font-semibold text-slate-900">A facturer</h3>
+                                                        <h3 className="font-semibold text-slate-900">Paiements a traiter</h3>
                                                         {counts.toBill > 0 && <Badge variant="neutral">{counts.toBill}</Badge>}
                                                     </div>
                                                     {counts.toBill === 0 ? (
                                                         <div className="text-center py-8 rounded-xl bg-emerald-50/50 border border-emerald-100">
                                                             <CheckCircle className="w-7 h-7 text-emerald-300 mx-auto mb-2" />
-                                                            <p className="text-sm text-emerald-600 font-medium">Tout est a jour</p>
+                                                            <p className="text-sm text-emerald-600 font-medium">Tout est encaisse</p>
                                                         </div>
                                                     ) : (
                                                         <div className="space-y-2">
-                                                            {todayAppointments.filter(isUnbilled).map((apt) => (
+                                                            {pendingBillingAppointments.map((apt) => {
+                                                                const invoice = getInvoiceForAppointment(apt);
+                                                                const amountPaid = invoice ? getInvoicePaidAmount(invoice) : 0;
+                                                                const amountRemaining = invoice ? Math.max(invoice.total - amountPaid, 0) : appointmentDefaultPrice[apt.type];
+                                                                return (
                                                                 <div key={apt.id} className="flex items-center justify-between p-3 rounded-xl border border-emerald-100 bg-white">
                                                                     <div className="flex items-center gap-3 min-w-0">
                                                                         <span className="text-sm font-bold text-slate-900">{apt.time}</span>
                                                                         <span className="text-base">{speciesIcon[apt.species]}</span>
                                                                         <div className="min-w-0">
                                                                             <p className="text-sm font-semibold text-slate-900 truncate">{apt.patientName}</p>
-                                                                            <p className="text-xs text-slate-500">{typeLabel[apt.type]} · {apt.veterinarian} · ~{appointmentDefaultPrice[apt.type]} EUR</p>
+                                                                            <p className="text-xs text-slate-500">
+                                                                                {typeLabel[apt.type]} · {apt.veterinarian}
+                                                                                {' · '}
+                                                                                {invoice ? `${amountRemaining.toFixed(2)} EUR a encaisser` : `~${appointmentDefaultPrice[apt.type]} EUR`}
+                                                                            </p>
                                                                         </div>
                                                                     </div>
                                                                     <button onClick={() => {
-                                                                        const invoice = createAutoInvoiceFromAppointment(apt);
-                                                                        if (invoice) toast.success(`Facture ${invoice.invoiceNumber} generee`);
+                                                                        if (!invoice) {
+                                                                            const created = createAutoInvoiceFromAppointment(apt);
+                                                                            if (created) {
+                                                                                toast.success(`Facture ${created.invoiceNumber} generee`);
+                                                                                navigate(`/billing?pay=${created.id}`);
+                                                                            }
+                                                                            return;
+                                                                        }
+                                                                        navigate(`/billing?pay=${invoice.id}`);
                                                                     }} className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors">
-                                                                        <Receipt className="w-4 h-4" /> Generer facture
+                                                                        {invoice ? <CreditCard className="w-4 h-4" /> : <Receipt className="w-4 h-4" />}
+                                                                        {invoice ? 'Encaisser' : 'Generer facture'}
                                                                     </button>
                                                                 </div>
-                                                            ))}
+                                                            );})}
                                                         </div>
                                                     )}
                                                 </div>

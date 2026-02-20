@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Header } from '../components/layout';
 import { SearchInput } from '../components/ui';
 import { useToast } from '../components/ui/Toast';
@@ -23,6 +23,7 @@ import { useClinicData } from '../context/clinicState';
 import { useAuth } from '../context/AuthContext';
 import { InvoiceForm } from '../components/forms/InvoiceForm';
 import type { InvoiceFormData } from '../schemas';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 type StatusFilter = 'all' | 'pending' | 'overdue' | 'partial' | 'paid';
 
@@ -428,6 +429,8 @@ export function Billing() {
     const { invoices, recordPayment, updateInvoiceData } = useClinicData();
     const { role } = useAuth();
     const toast = useToast();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -435,6 +438,22 @@ export function Billing() {
     const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
 
     const canManage = role === 'assistant' || role === 'veterinarian';
+
+    useEffect(() => {
+        const targetInvoiceId = searchParams.get('pay');
+        if (!targetInvoiceId) return;
+
+        const targetInvoice = invoices.find((invoice) => invoice.id === targetInvoiceId);
+        if (targetInvoice) {
+            setSearchQuery(targetInvoice.invoiceNumber);
+            setStatusFilter('all');
+            if (canManage && targetInvoice.status !== 'paid') {
+                setPayingInvoice(targetInvoice);
+            }
+        }
+
+        navigate('/billing', { replace: true });
+    }, [searchParams, invoices, canManage, navigate]);
 
     const filteredInvoices = useMemo(
         () =>

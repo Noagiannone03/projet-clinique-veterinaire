@@ -70,15 +70,7 @@ export function Login() {
                         </div>
                     </div>
 
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary-600">Clinique des Etangs</p>
-                    <h1 className="mt-3 text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl">
-                        Gestion clinique
-                        <br />
-                        plus fluide au quotidien
-                    </h1>
-                    <p className="mt-3 max-w-lg text-sm text-slate-600 sm:text-base">
-                        Prototype MVP de test inspire des interfaces de sante: priorite a la lisibilite, a la vitesse et aux actions metier.
-                    </p>
+                    <h1 className="text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl">Clinique des Etangs</h1>
                 </section>
 
                 <section className="bg-white p-6 sm:p-10">
