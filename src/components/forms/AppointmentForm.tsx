@@ -126,19 +126,19 @@ export function AppointmentForm({ isOpen, onClose, onSubmit, appointment, defaul
                                     setValue('time', newTime);
                                     setConflictError(null);
                                 }}
-                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-rose-700"
+                                className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-accent-700"
                             >
                                 <Calendar className="h-4 w-4" />
-                                Décaler après ça
+                                Proposer le prochain créneau
                             </button>
 
                             <button
                                 type="button"
                                 onClick={() => handleFormSubmit(getValues(), true)}
-                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-700 transition hover:bg-rose-50"
+                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-accent-200 bg-white px-3 py-2 text-sm font-bold text-accent-700 transition hover:bg-accent-50"
                             >
                                 <AlertCircle className="h-4 w-4" />
-                                Forcer et superposer
+                                Maintenir malgré le conflit
                             </button>
                         </div>
                     </div>

@@ -63,10 +63,10 @@ const appointmentDefaultPrice: Record<Appointment['type'], number> = {
 };
 
 const stepConfig: { key: PipelineStatus; label: string; icon: typeof Clock; color: string; bg: string }[] = [
-    { key: 'scheduled', label: 'Planifie', icon: Clock, color: 'text-primary-600', bg: 'bg-primary-500' },
-    { key: 'arrived', label: 'Arrive', icon: UserCheck, color: 'text-secondary-600', bg: 'bg-secondary-500' },
+    { key: 'scheduled', label: 'Planifié', icon: Clock, color: 'text-primary-600', bg: 'bg-primary-500' },
+    { key: 'arrived', label: 'Arrivé', icon: UserCheck, color: 'text-secondary-600', bg: 'bg-secondary-500' },
     { key: 'in-progress', label: 'En cours', icon: Stethoscope, color: 'text-amber-600', bg: 'bg-amber-500' },
-    { key: 'completed', label: 'Termine', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-500' },
+    { key: 'completed', label: 'Terminé', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-500' },
 ];
 
 // ─── Main Dashboard ──────────────────────────────────────────
@@ -127,7 +127,7 @@ export function ClinicDashboard() {
     // ─── Handlers ───
     const handleSimpleAdvance = (appointment: Appointment) => {
         updateAppointmentStatus(appointment.id, 'arrived');
-        toast.success(`${appointment.patientName} est arrive`);
+        toast.success(`${appointment.patientName} est arrivé`);
     };
 
     const handleStartConsultation = (appointment: Appointment) => {
@@ -255,7 +255,7 @@ export function ClinicDashboard() {
         let onAction = () => { };
 
         if (apt.status === 'scheduled') {
-            actionLabel = 'Patient arrive';
+            actionLabel = 'Patient arrivé';
             actionIcon = <UserCheck className="w-4 h-4" />;
             actionColor = 'bg-secondary-600 hover:bg-secondary-700 text-white';
             onAction = () => handleSimpleAdvance(apt);

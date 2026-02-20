@@ -5,12 +5,14 @@
 @tailwind utilities;
 
 :root {
-  --brand-50: #eef7ff;
-  --brand-100: #d8ebff;
-  --brand-200: #b7dbff;
-  --brand-500: #2c8be8;
-  --brand-600: #0f76d8;
-  --brand-700: #0b62b4;
+  --brand-50: #eef5fb;
+  --brand-100: #d8e7f3;
+  --brand-200: #b7d0e5;
+  --brand-500: #356c9d;
+  --brand-600: #0b2c4d;
+  --brand-700: #08233d;
+  --mint-500: #7fe1cb;
+  --accent-500: #8f4fe8;
 }
 
 html {
@@ -20,7 +22,7 @@ html {
 }
 
 body {
-  background-color: #f4f7fb;
+  background-color: #f3f7fa;
   color: #0f172a;
 }
 

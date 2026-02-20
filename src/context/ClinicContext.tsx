@@ -209,7 +209,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             });
 
             if (conflict) {
-                return { ok: false as const, message: 'Conflit de planning sur ce creneau.', conflict };
+                return { ok: false as const, message: 'Conflit de planning sur ce créneau.', conflict };
             }
         }
 
@@ -247,7 +247,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             });
 
             if (conflict) {
-                return { ok: false as const, message: 'Conflit de planning sur ce creneau.', conflict };
+                return { ok: false as const, message: 'Conflit de planning sur ce créneau.', conflict };
             }
         }
 
@@ -281,7 +281,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 veterinarian: current.veterinarian,
             });
 
-            if (conflict) return { ok: false as const, message: 'Conflit detecte avec un autre rendez-vous.', conflict };
+            if (conflict) return { ok: false as const, message: 'Conflit détecté avec un autre rendez-vous.', conflict };
 
             setAppointments((prev) =>
                 prev.map((a) =>

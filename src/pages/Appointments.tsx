@@ -36,8 +36,8 @@ interface AppointmentAction {
 const statusColors: Record<Appointment['status'], {
     bg: string; text: string; border: string; dot: string; ring: string; hex: string;
 }> = {
-    scheduled: { bg: 'bg-primary-50', text: 'text-primary-700', border: 'border-l-primary-400', dot: 'bg-primary-400', ring: 'ring-primary-200', hex: '#3B82F6' },
-    arrived: { bg: 'bg-secondary-50', text: 'text-secondary-700', border: 'border-l-secondary-400', dot: 'bg-secondary-500', ring: 'ring-secondary-200', hex: '#06B6D4' },
+    scheduled: { bg: 'bg-primary-50', text: 'text-primary-700', border: 'border-l-primary-400', dot: 'bg-primary-400', ring: 'ring-primary-200', hex: '#0B2C4D' },
+    arrived: { bg: 'bg-secondary-50', text: 'text-secondary-700', border: 'border-l-secondary-400', dot: 'bg-secondary-500', ring: 'ring-secondary-200', hex: '#7FE1CB' },
     'in-progress': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-l-amber-400', dot: 'bg-amber-500', ring: 'ring-amber-200', hex: '#F59E0B' },
     completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-l-emerald-400', dot: 'bg-emerald-500', ring: 'ring-emerald-200', hex: '#10B981' },
     cancelled: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-l-rose-400', dot: 'bg-rose-400', ring: 'ring-rose-200', hex: '#F43F5E' },
@@ -80,7 +80,7 @@ const vetPalette = [
     { bg: 'bg-primary-100', text: 'text-primary-800', active: 'bg-primary-600 text-white' },
     { bg: 'bg-secondary-100', text: 'text-secondary-800', active: 'bg-secondary-600 text-white' },
     { bg: 'bg-amber-100', text: 'text-amber-800', active: 'bg-amber-500 text-white' },
-    { bg: 'bg-rose-100', text: 'text-rose-800', active: 'bg-rose-600 text-white' },
+    { bg: 'bg-accent-100', text: 'text-accent-800', active: 'bg-accent-600 text-white' },
     { bg: 'bg-primary-100', text: 'text-primary-800', active: 'bg-primary-600 text-white' },
 ];
 
@@ -297,7 +297,7 @@ export function Appointments() {
             date: format(event.start, 'yyyy-MM-dd'),
             time: format(event.start, 'HH:mm'),
             duration: dur, revert,
-            description: `Déplacer ${apt.patientName} au ${format(event.start, 'dd/MM')} à ${format(event.start, 'HH:mm')} ?`,
+            description: `Reprogrammer ${apt.patientName} au ${format(event.start, 'dd/MM')} à ${format(event.start, 'HH:mm')} ?`,
         });
     };
 
@@ -696,11 +696,12 @@ export function Appointments() {
                     if (!pendingMove) return;
                     const r = updateAppointmentSchedule(pendingMove.id, { date: pendingMove.date, time: pendingMove.time, duration: pendingMove.duration });
                     if (!r.ok) { toast.error(r.message); pendingMove.revert(); setPendingMove(null); return; }
-                    toast.success('Rendez-vous déplacé'); setPendingMove(null);
+                    toast.success('Rendez-vous reprogrammé'); setPendingMove(null);
                 }}
-                title="Déplacer le rendez-vous"
+                title="Reprogrammer le rendez-vous"
                 message={pendingMove?.description || ''}
-                confirmLabel="Déplacer"
+                confirmLabel="Confirmer la reprogrammation"
+                cancelLabel="Conserver l'horaire actuel"
                 variant="warning"
             />
 

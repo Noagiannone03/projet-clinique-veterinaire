@@ -17,11 +17,11 @@ export const appointmentTypeAccent: Record<Appointment['type'], string> = {
 };
 
 export const appointmentStatusLabel: Record<Appointment['status'], string> = {
-    scheduled: 'Planifie',
-    arrived: 'Arrive',
+    scheduled: 'Planifié',
+    arrived: 'Arrivé',
     'in-progress': 'En consultation',
-    completed: 'Termine',
-    cancelled: 'Annule',
+    completed: 'Terminé',
+    cancelled: 'Annulé',
 };
 
 export const appointmentStatusVariant: Record<Appointment['status'], 'info' | 'warning' | 'success' | 'danger' | 'neutral'> = {
