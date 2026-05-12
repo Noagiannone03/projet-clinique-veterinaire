@@ -18,7 +18,7 @@ import { useSidebar } from '../../context/SidebarContext';
 import { useState } from 'react';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import type { Role } from '../../types';
-import clinicLogo from '../../assets/logoclinique copie.png';
+// clinicLogo import removed
 
 interface NavItem {
     to: string;
@@ -58,9 +58,9 @@ export function Sidebar() {
                         <div className="flex items-center gap-3">
                             <div className={`${isExpanded ? 'h-16 w-44 rounded-xl border border-slate-200 bg-white p-1' : 'h-12 w-12 rounded-lg border border-slate-200 bg-white p-1'} overflow-hidden flex-shrink-0`}>
                                 <img
-                                    src={clinicLogo}
+                                    src="/logo.png"
                                     alt="Clinique des Etangs"
-                                    className={`h-full w-full object-cover ${isExpanded ? 'object-center scale-125' : 'object-left scale-140'}`}
+                                    className="h-full w-full object-contain"
                                 />
                             </div>
                         </div>
@@ -143,9 +143,9 @@ export function Sidebar() {
                             <div className="flex items-center gap-3">
                                 <div className="h-14 w-40 flex-shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-1">
                                     <img
-                                        src={clinicLogo}
+                                        src="/logo.png"
                                         alt="Clinique des Etangs"
-                                        className="h-full w-full object-cover object-center scale-125"
+                                        className="h-full w-full object-contain"
                                     />
                                 </div>
                             </div>

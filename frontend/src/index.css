@@ -5,14 +5,14 @@
 @tailwind utilities;
 
 :root {
-  --brand-50: #eef5fb;
-  --brand-100: #d8e7f3;
-  --brand-200: #b7d0e5;
-  --brand-500: #356c9d;
-  --brand-600: #0b2c4d;
-  --brand-700: #08233d;
-  --mint-500: #7fe1cb;
-  --accent-500: #8f4fe8;
+  --brand-50: #f4f6f3;
+  --brand-100: #e5eae3;
+  --brand-200: #ced9ca;
+  --brand-500: #8da685;
+  --brand-600: #718a6a;
+  --brand-700: #586b52;
+  --mint-500: #aec3c1;
+  --accent-500: #8da6a4;
 }
 
 html {

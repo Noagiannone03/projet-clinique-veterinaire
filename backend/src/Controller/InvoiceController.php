@@ -29,6 +29,31 @@ class InvoiceController extends AbstractController
         return $this->json(array_map(function($i) {
             $owner = $i->getOwner();
             $consultation = $i->getConsultation();
+            
+            $lines = array_map(function($line) {
+                return [
+                    'id' => (string)$line->getId(),
+                    'description' => $line->getDescription(),
+                    'quantity' => $line->getQuantite(),
+                    'unitPrice' => (float)$line->getUnitPrice(),
+                    'total' => (float)$line->getSubTotal(),
+                    'lineType' => $line->getProduct() ? 'product' : 'service',
+                    'productId' => $line->getProduct() ? (string)$line->getProduct()->getId() : null,
+                ];
+            }, $i->getLines()->toArray());
+
+            // If no lines in DB, provide the fallback default line
+            if (empty($lines)) {
+                $lines = [[
+                    'id' => 'fallback',
+                    'description' => 'Prestation de soin / Consultation',
+                    'quantity' => 1,
+                    'unitPrice' => (float)$i->getTotalAmount(),
+                    'total' => (float)$i->getTotalAmount(),
+                    'lineType' => 'service'
+                ]];
+            }
+
             return [
                 'id' => (string)$i->getId(),
                 'invoiceNumber' => 'FAC-' . str_pad($i->getId(), 6, '0', STR_PAD_LEFT),
@@ -42,17 +67,13 @@ class InvoiceController extends AbstractController
                 'subtotal' => (float)$i->getTotalAmount() / 1.2,
                 'tax' => (float)$i->getTotalAmount() * 0.2,
                 'source' => $consultation ? 'consultation' : 'manual',
-                'lines' => [
-                    [
-                        'id' => 'l1',
-                        'description' => 'Prestation de soin / Consultation',
-                        'quantity' => 1,
-                        'unitPrice' => (float)$i->getTotalAmount(),
-                        'total' => (float)$i->getTotalAmount(),
-                        'lineType' => 'service'
-                    ]
-                ],
-                'payments' => [],
+                'lines' => $lines,
+                'payments' => $i->getPaidAmount() > 0 ? [[
+                    'id' => 'p1',
+                    'amount' => (float)$i->getPaidAmount(),
+                    'method' => $i->getPaymentMode() ?: 'card',
+                    'date' => $i->getDate() ? $i->getDate()->format('Y-m-d') : '',
+                ]] : [],
                 'paymentPlan' => null,
             ];
         }, $invoices));

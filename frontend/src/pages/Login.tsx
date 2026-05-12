@@ -9,7 +9,7 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 // Role import removed
-import clinicLogo from '../assets/logoclinique copie.png';
+// clinicLogo import removed
 
 // Removed unused role constants
 
@@ -50,9 +50,9 @@ export function Login() {
                     <div className="mb-6 inline-flex rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
                         <div className="h-16 w-44 overflow-hidden rounded-xl bg-white p-1">
                             <img
-                                src={clinicLogo}
+                                src="/logo.png"
                                 alt="Clinique des Etangs"
-                                className="h-full w-full object-cover object-center scale-125"
+                                className="h-full w-full object-contain"
                             />
                         </div>
                     </div>
