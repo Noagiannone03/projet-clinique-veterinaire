@@ -196,18 +196,39 @@ const initialPrescriptionOrders: PrescriptionOrder[] = normalizePrescriptionOrde
     buildInitialPrescriptionOrders(initialPatients, initialProducts)
 );
 
+import { apiService } from '../services/api';
+
 export function ClinicProvider({ children }: { children: ReactNode }) {
-    const [patients, setPatients] = useState<Patient[]>(() => loadState('patients', initialPatients));
-    const [appointments, setAppointments] = useState<Appointment[]>(() => loadState('appointments', initialAppointments));
-    const [invoices, setInvoices] = useState<Invoice[]>(() =>
-        normalizeInvoices(loadState('invoices', initialInvoices))
-    );
-    const [products, setProducts] = useState<Product[]>(() => loadState('products', initialProducts));
-    const [stockMovements, setStockMovements] = useState<StockMovement[]>(() => loadState('stockMovements', []));
-    const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>(() => loadState('activityLog', []));
-    const [prescriptionOrders, setPrescriptionOrders] = useState<PrescriptionOrder[]>(() =>
-        normalizePrescriptionOrders(loadState('prescriptionOrders', initialPrescriptionOrders))
-    );
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+    const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
+    const [prescriptionOrders, setPrescriptionOrders] = useState<PrescriptionOrder[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [pts, apts, invs, prods] = await Promise.all([
+                    apiService.getPatients(),
+                    apiService.getAppointments(),
+                    apiService.getInvoices(),
+                    apiService.getProducts(),
+                ]);
+                setPatients(pts);
+                setAppointments(apts);
+                setInvoices(invs);
+                setProducts(prods);
+            } catch (error) {
+                console.error('Failed to fetch data from API', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     // Persist to localStorage
     useEffect(() => { storage.set('patients', patients); }, [patients]);
@@ -737,6 +758,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             stockMovements,
             activityLog,
             prescriptionOrders,
+            loading,
             addPatient,
             updatePatient,
             deletePatient,

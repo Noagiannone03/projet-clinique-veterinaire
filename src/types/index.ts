@@ -4,6 +4,7 @@ export type Role = 'director' | 'veterinarian' | 'assistant';
 export interface User {
     id: string;
     name: string;
+    email: string;
     role: Role;
     description: string;
     icon: string;

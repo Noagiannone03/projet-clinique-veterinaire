@@ -26,34 +26,34 @@ const roleTitles: Record<Role, string> = {
     assistant: 'Assistante',
 };
 
-const demoCredentials: Record<Role, { email: string; password: string }> = {
-    director: { email: 'direction@cliniquedesetangs.fr', password: 'demo-directeur' },
-    veterinarian: { email: 'vet@cliniquedesetangs.fr', password: 'demo-veto' },
-    assistant: { email: 'accueil@cliniquedesetangs.fr', password: 'demo-assistante' },
-};
-
 export function Login() {
-    const { login, demoUsers } = useAuth();
+    const { login } = useAuth();
     const navigate = useNavigate();
-    const [selectedRole, setSelectedRole] = useState<Role>('veterinarian');
-    const [email, setEmail] = useState(demoCredentials.veterinarian.email);
-    const [password, setPassword] = useState(demoCredentials.veterinarian.password);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const runLogin = (role: Role) => {
-        login(role);
-        navigate(role === 'director' ? '/' : '/clinic');
-    };
-
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        runLogin(selectedRole);
-    };
-
-    const selectDemoRole = (role: Role) => {
-        setSelectedRole(role);
-        setEmail(demoCredentials[role].email);
-        setPassword(demoCredentials[role].password);
+        setError(null);
+        setIsSubmitting(true);
+        
+        try {
+            const result = await login(email, password);
+            if (result.ok) {
+                // Determine redirect based on role stored in local storage or returned by login
+                const role = localStorage.getItem('vetcare_role');
+                navigate(role === 'director' ? '/' : '/clinic');
+            } else {
+                setError(result.message || 'Identifiants invalides');
+            }
+        } catch (err) {
+            setError('Une erreur est survenue lors de la connexion');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -71,15 +71,22 @@ export function Login() {
                     </div>
 
                     <h1 className="text-3xl font-extrabold leading-tight text-slate-900 sm:text-4xl">Clinique des Etangs</h1>
+                    <p className="mt-4 text-lg text-slate-600 max-w-md">Système de gestion vétérinaire complet pour le suivi des patients, du stock et de la facturation.</p>
                 </section>
 
                 <section className="bg-white p-6 sm:p-10">
                     <div className="mx-auto w-full max-w-md">
                         <div className="mb-6">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Connexion</p>
-                            <h2 className="mt-2 text-2xl font-bold text-slate-900">Bienvenue</h2>
-                            <p className="mt-1 text-sm text-slate-500">Utilisez un compte demo pour entrer dans la plateforme.</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-600">Portail Interne</p>
+                            <h2 className="mt-2 text-2xl font-bold text-slate-900">Connexion</h2>
+                            <p className="mt-1 text-sm text-slate-500">Veuillez entrer vos identifiants pour accéder à votre espace.</p>
                         </div>
+
+                        {error && (
+                            <div className="mb-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-600 border border-red-100">
+                                {error}
+                            </div>
+                        )}
 
                         <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
                             <div className="space-y-4">
@@ -92,9 +99,10 @@ export function Login() {
                                         <input
                                             id="email"
                                             type="email"
+                                            required
                                             value={email}
                                             onChange={(event) => setEmail(event.target.value)}
-                                            placeholder="prenom.nom@cliniquedesetangs.fr"
+                                            placeholder="votre.email@clinique-etangs.fr"
                                             className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-100"
                                         />
                                     </div>
@@ -109,9 +117,10 @@ export function Login() {
                                         <input
                                             id="password"
                                             type={showPassword ? 'text' : 'password'}
+                                            required
                                             value={password}
                                             onChange={(event) => setPassword(event.target.value)}
-                                            placeholder="Entrez votre mot de passe"
+                                            placeholder="••••••••"
                                             className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-100"
                                         />
                                         <button
@@ -125,50 +134,27 @@ export function Login() {
                                 </div>
                             </div>
 
-                            <div className="mt-5">
-                                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Profil</p>
-                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                    {demoUsers.map((user) => {
-                                        const active = selectedRole === user.role;
-                                        return (
-                                            <button
-                                                key={user.id}
-                                                type="button"
-                                                onClick={() => selectDemoRole(user.role)}
-                                                className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${active
-                                                    ? 'border-primary-300 bg-primary-50 text-primary-700'
-                                                    : 'border-slate-300 bg-white text-slate-600 hover:border-primary-200 hover:text-primary-700'
-                                                    }`}
-                                            >
-                                                {roleIcons[user.role]}
-                                                {roleTitles[user.role]}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
                             <div className="mt-4 flex items-center justify-between">
-                                <label className="flex items-center gap-2 text-xs text-slate-500">
-                                    <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500" defaultChecked />
+                                <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+                                    <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
                                     Se souvenir de moi
                                 </label>
-                                <span className="text-xs font-medium text-primary-600">Mot de passe oublie ?</span>
+                                <button type="button" className="text-xs font-medium text-primary-600 hover:underline">Mot de passe oublié ?</button>
                             </div>
 
                             <button
                                 type="submit"
-                                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-primary-600/25 transition hover:bg-primary-700"
+                                disabled={isSubmitting}
+                                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-primary-600/25 transition hover:bg-primary-700 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
                                 <ShieldCheck className="h-4 w-4" />
-                                Se connecter (demo)
+                                {isSubmitting ? 'Connexion...' : 'Se connecter'}
                             </button>
-
-                            <p className="mt-3 text-center text-xs text-slate-500">
-                                Connexion fictive pour environnement de test.
-                            </p>
                         </form>
 
+                        <p className="mt-6 text-center text-xs text-slate-500">
+                            Accès réservé au personnel de la Clinique des Étangs.
+                        </p>
                     </div>
                 </section>
             </div>

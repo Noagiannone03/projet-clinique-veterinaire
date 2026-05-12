@@ -37,6 +37,7 @@ export interface ClinicContextValue {
     stockMovements: StockMovement[];
     activityLog: ActivityLogEntry[];
     prescriptionOrders: PrescriptionOrder[];
+    loading: boolean;
 
     // Patients CRUD
     addPatient: (patient: Omit<Patient, 'id' | 'alerts' | 'vaccinations' | 'medicalHistory'>) => Patient;

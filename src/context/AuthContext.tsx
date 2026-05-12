@@ -1,37 +1,13 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type { Role, User } from '../types';
-
-const DEMO_USERS: User[] = [
-    {
-        id: 'user-1',
-        name: 'M. Lannes',
-        role: 'director',
-        description: 'Vision globale, KPIs, rentabilite, paiements',
-        icon: 'briefcase',
-    },
-    {
-        id: 'user-2',
-        name: 'Dr. Sophie Martin',
-        role: 'veterinarian',
-        description: 'Dossiers patients, consultations, ordonnances',
-        icon: 'stethoscope',
-    },
-    {
-        id: 'user-3',
-        name: 'Julie Renard',
-        role: 'assistant',
-        description: 'Accueil, RDV, facturation, inventaire',
-        icon: 'headset',
-    },
-];
+import { apiService } from '../services/api';
 
 interface AuthContextValue {
     user: User | null;
     role: Role | null;
     isAuthenticated: boolean;
-    login: (role: Role) => void;
-    logout: () => void;
-    demoUsers: User[];
+    login: (email: string, password?: string) => Promise<{ ok: boolean; message?: string }>;
+    logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -39,29 +15,49 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(() => {
         const savedRole = localStorage.getItem('vetcare_role');
-        if (savedRole) {
-            const savedUser = DEMO_USERS.find((u) => u.role === savedRole) || null;
-            if (savedUser) {
-                localStorage.setItem('vetcare_user_name', savedUser.name);
-            }
-            return savedUser;
+        const savedName = localStorage.getItem('vetcare_user_name');
+        const savedEmail = localStorage.getItem('vetcare_email');
+        if (savedRole && savedName && savedEmail) {
+            return {
+                id: 'session',
+                role: savedRole as Role,
+                name: savedName,
+                email: savedEmail,
+                description: '',
+                icon: ''
+            } as User;
         }
         return null;
     });
 
-    const login = useCallback((role: Role) => {
-        const selectedUser = DEMO_USERS.find((u) => u.role === role);
-        if (selectedUser) {
-            setUser(selectedUser);
-            localStorage.setItem('vetcare_role', role);
-            localStorage.setItem('vetcare_user_name', selectedUser.name);
+    const login = useCallback(async (email: string, password?: string) => {
+        try {
+            // If password is provided, it's a real login attempt
+            // If not (e.g. from the quick selector), we use 'admin' as default for testing
+            const data = await apiService.login(email, password || 'admin');
+            const loggedUser = data.user;
+            
+            setUser(loggedUser);
+            localStorage.setItem('vetcare_role', loggedUser.role);
+            localStorage.setItem('vetcare_user_name', loggedUser.name);
+            localStorage.setItem('vetcare_email', loggedUser.email);
+            return { ok: true };
+        } catch (error) {
+            console.error('Login failed', error);
+            return { ok: false, message: 'Identifiants invalides' };
         }
     }, []);
 
-    const logout = useCallback(() => {
+    const logout = useCallback(async () => {
+        try {
+            await apiService.logout();
+        } catch (e) {
+            console.error('Logout error', e);
+        }
         setUser(null);
         localStorage.removeItem('vetcare_role');
         localStorage.removeItem('vetcare_user_name');
+        localStorage.removeItem('vetcare_email');
     }, []);
 
     return (
@@ -72,7 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isAuthenticated: !!user,
                 login,
                 logout,
-                demoUsers: DEMO_USERS,
             }}
         >
             {children}
