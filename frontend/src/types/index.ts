@@ -69,6 +69,14 @@ export interface Prescription {
     frequency: string;
     duration: string;
     instructions: string;
+    status?: PrescriptionOrderStatus;
+    printedCount?: number;
+    lastPrintedAt?: string;
+    preparedAt?: string;
+    preparedBy?: string;
+    dispensedAt?: string;
+    dispensedBy?: string;
+    cancellationReason?: string;
 }
 
 export type PrescriptionOrderStatus = 'pending' | 'prepared' | 'dispensed' | 'cancelled';

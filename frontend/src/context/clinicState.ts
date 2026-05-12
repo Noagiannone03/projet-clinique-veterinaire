@@ -89,10 +89,10 @@ export interface ClinicContextValue {
         sourceAppointmentId?: string;
         sourceMedicalRecordId?: string;
     }) => PrescriptionOrder;
-    markPrescriptionAsPrinted: (prescriptionOrderId: string) => void;
-    markPrescriptionAsPrepared: (prescriptionOrderId: string) => void;
-    markPrescriptionAsDispensed: (prescriptionOrderId: string) => { ok: true } | { ok: false; message: string };
-    cancelPrescriptionOrder: (prescriptionOrderId: string, reason?: string) => void;
+    markPrescriptionAsPrinted: (prescriptionOrderId: string) => Promise<void>;
+    markPrescriptionAsPrepared: (prescriptionOrderId: string) => Promise<void>;
+    markPrescriptionAsDispensed: (prescriptionOrderId: string) => Promise<{ ok: true } | { ok: false; message: string }>;
+    cancelPrescriptionOrder: (prescriptionOrderId: string, reason?: string) => Promise<void>;
 }
 
 export const ClinicStateContext = createContext<ClinicContextValue | undefined>(undefined);

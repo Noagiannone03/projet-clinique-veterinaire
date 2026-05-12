@@ -41,6 +41,30 @@ class Prescription
     #[ORM\Column(name: 'date_emission', type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private ?\DateTimeInterface $emittedAt = null;
 
+    #[ORM\Column(length: 20, options: ['default' => 'pending'])]
+    private ?string $statut = 'pending';
+
+    #[ORM\Column(name: 'printed_count', options: ['default' => 0])]
+    private ?int $printedCount = 0;
+
+    #[ORM\Column(name: 'last_printed_at', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $lastPrintedAt = null;
+
+    #[ORM\Column(name: 'prepared_at', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $preparedAt = null;
+
+    #[ORM\Column(name: 'prepared_by', length: 255, nullable: true)]
+    private ?string $preparedBy = null;
+
+    #[ORM\Column(name: 'dispensed_at', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $dispensedAt = null;
+
+    #[ORM\Column(name: 'dispensed_by', length: 255, nullable: true)]
+    private ?string $dispensedBy = null;
+
+    #[ORM\Column(name: 'cancellation_reason', type: Types::TEXT, nullable: true)]
+    private ?string $cancellationReason = null;
+
     public function __construct()
     {
         $this->emittedAt = new \DateTime();
@@ -131,5 +155,93 @@ class Prescription
     public function getEmittedAt(): ?\DateTimeInterface
     {
         return $this->emittedAt;
+    }
+
+    public function getStatut(): ?string
+    {
+        return $this->statut;
+    }
+
+    public function setStatut(string $statut): static
+    {
+        $this->statut = $statut;
+        return $this;
+    }
+
+    public function getPrintedCount(): int
+    {
+        return $this->printedCount ?? 0;
+    }
+
+    public function setPrintedCount(int $printedCount): static
+    {
+        $this->printedCount = max(0, $printedCount);
+        return $this;
+    }
+
+    public function getLastPrintedAt(): ?\DateTimeInterface
+    {
+        return $this->lastPrintedAt;
+    }
+
+    public function setLastPrintedAt(?\DateTimeInterface $lastPrintedAt): static
+    {
+        $this->lastPrintedAt = $lastPrintedAt;
+        return $this;
+    }
+
+    public function getPreparedAt(): ?\DateTimeInterface
+    {
+        return $this->preparedAt;
+    }
+
+    public function setPreparedAt(?\DateTimeInterface $preparedAt): static
+    {
+        $this->preparedAt = $preparedAt;
+        return $this;
+    }
+
+    public function getPreparedBy(): ?string
+    {
+        return $this->preparedBy;
+    }
+
+    public function setPreparedBy(?string $preparedBy): static
+    {
+        $this->preparedBy = $preparedBy;
+        return $this;
+    }
+
+    public function getDispensedAt(): ?\DateTimeInterface
+    {
+        return $this->dispensedAt;
+    }
+
+    public function setDispensedAt(?\DateTimeInterface $dispensedAt): static
+    {
+        $this->dispensedAt = $dispensedAt;
+        return $this;
+    }
+
+    public function getDispensedBy(): ?string
+    {
+        return $this->dispensedBy;
+    }
+
+    public function setDispensedBy(?string $dispensedBy): static
+    {
+        $this->dispensedBy = $dispensedBy;
+        return $this;
+    }
+
+    public function getCancellationReason(): ?string
+    {
+        return $this->cancellationReason;
+    }
+
+    public function setCancellationReason(?string $cancellationReason): static
+    {
+        $this->cancellationReason = $cancellationReason;
+        return $this;
     }
 }

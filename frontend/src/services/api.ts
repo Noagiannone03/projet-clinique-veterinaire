@@ -109,6 +109,19 @@ export const apiService = {
         const response = await api.post(`/invoices/${invoiceId}/payments`, payment);
         return response.data as Invoice;
     },
+
+    markPrescriptionPrinted: async (id: string) => {
+        await api.post(`/prescription-orders/${id}/printed`);
+    },
+    markPrescriptionPrepared: async (id: string, actor?: string) => {
+        await api.post(`/prescription-orders/${id}/prepared`, { actor });
+    },
+    markPrescriptionDispensed: async (id: string, actor?: string) => {
+        await api.post(`/prescription-orders/${id}/dispensed`, { actor });
+    },
+    cancelPrescriptionOrder: async (id: string, reason?: string) => {
+        await api.post(`/prescription-orders/${id}/cancelled`, { reason });
+    },
 };
 
 export default api;

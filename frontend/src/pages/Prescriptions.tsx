@@ -160,23 +160,23 @@ export function Prescriptions() {
 
     const canManageDispense = role === 'assistant';
 
-    const handlePrint = (order: PrescriptionOrder) => {
+    const handlePrint = async (order: PrescriptionOrder) => {
         const ok = printPrescription(order);
         if (!ok) {
             toast.error('Impossible d\'ouvrir la fenetre d\'impression.');
             return;
         }
-        markPrescriptionAsPrinted(order.id);
+        await markPrescriptionAsPrinted(order.id);
         toast.success(`Ordonnance ${order.prescriptionNumber} imprimee`);
     };
 
-    const handlePrepare = (order: PrescriptionOrder) => {
-        markPrescriptionAsPrepared(order.id);
+    const handlePrepare = async (order: PrescriptionOrder) => {
+        await markPrescriptionAsPrepared(order.id);
         toast.success('Ordonnance marquee comme preparee');
     };
 
-    const handleDispense = (order: PrescriptionOrder) => {
-        const result = markPrescriptionAsDispensed(order.id);
+    const handleDispense = async (order: PrescriptionOrder) => {
+        const result = await markPrescriptionAsDispensed(order.id);
         if (!result.ok) {
             toast.error(result.message);
             return;
@@ -184,10 +184,10 @@ export function Prescriptions() {
         toast.success('Ordonnance delivree, stock mis a jour');
     };
 
-    const handleCancel = (order: PrescriptionOrder) => {
+    const handleCancel = async (order: PrescriptionOrder) => {
         const confirmed = window.confirm(`Annuler ${order.prescriptionNumber} ?`);
         if (!confirmed) return;
-        cancelPrescriptionOrder(order.id, 'Annulation manuelle');
+        await cancelPrescriptionOrder(order.id, 'Annulation manuelle');
         toast.warning('Ordonnance annulee');
     };
 

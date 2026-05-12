@@ -136,6 +136,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 pts.forEach((p: Patient) => {
                     p.medicalHistory?.forEach((m: MedicalRecord) => {
                         if (!m.prescriptions || m.prescriptions.length === 0) return;
+                        const firstPrescription = m.prescriptions[0];
                         orders.push({
                             id: `rx-${m.id}`,
                             prescriptionNumber: `ORD-${m.date.slice(0, 4)}-${String(orders.length + 1).padStart(4, '0')}`,
@@ -146,9 +147,15 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                             issueDate: m.date,
                             diagnosis: m.diagnosis,
                             notes: m.notes,
-                            status: 'pending',
+                            status: firstPrescription.status ?? 'pending',
                             sourceMedicalRecordId: m.id,
-                            printedCount: 0,
+                            printedCount: firstPrescription.printedCount ?? 0,
+                            lastPrintedAt: firstPrescription.lastPrintedAt,
+                            preparedAt: firstPrescription.preparedAt,
+                            preparedBy: firstPrescription.preparedBy,
+                            dispensedAt: firstPrescription.dispensedAt,
+                            dispensedBy: firstPrescription.dispensedBy,
+                            cancellationReason: firstPrescription.cancellationReason,
                             lines: m.prescriptions.map((prescription) => ({
                                 id: prescription.id,
                                 medication: prescription.medication,
@@ -458,7 +465,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         return createdOrder;
     }, [prescriptionOrders, logActivity]);
 
-    const markPrescriptionAsPrinted = useCallback((prescriptionOrderId: string) => {
+    const markPrescriptionAsPrinted = useCallback(async (prescriptionOrderId: string) => {
+        await apiService.markPrescriptionPrinted(prescriptionOrderId);
         const printedAt = new Date().toISOString();
         setPrescriptionOrders((prev) =>
             prev.map((order) => (
@@ -470,10 +478,12 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         logActivity('print', 'prescriptionOrder', prescriptionOrderId);
     }, [logActivity]);
 
-    const markPrescriptionAsPrepared = useCallback((prescriptionOrderId: string) => {
+    const markPrescriptionAsPrepared = useCallback(async (prescriptionOrderId: string) => {
         const current = prescriptionOrders.find((order) => order.id === prescriptionOrderId);
         if (!current || current.status !== 'pending') return;
 
+        const actor = getCurrentActor();
+        await apiService.markPrescriptionPrepared(prescriptionOrderId, actor);
         setPrescriptionOrders((prev) =>
             prev.map((order) => (
                 order.id === prescriptionOrderId
@@ -481,7 +491,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                         ...order,
                         status: 'prepared',
                         preparedAt: new Date().toISOString(),
-                        preparedBy: getCurrentActor(),
+                        preparedBy: actor,
                     }
                     : order
             ))
@@ -489,7 +499,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         logActivity('prepare', 'prescriptionOrder', prescriptionOrderId);
     }, [prescriptionOrders, logActivity]);
 
-    const markPrescriptionAsDispensed = useCallback((prescriptionOrderId: string) => {
+    const markPrescriptionAsDispensed = useCallback(async (prescriptionOrderId: string) => {
         const current = prescriptionOrders.find((order) => order.id === prescriptionOrderId);
         if (!current) return { ok: false as const, message: 'Ordonnance introuvable.' };
         if (current.status === 'cancelled') return { ok: false as const, message: 'Ordonnance annulee.' };
@@ -513,7 +523,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         }
 
         for (const [productId, quantity] of requiredByProduct.entries()) {
-            adjustProductStock(
+            await adjustProductStock(
                 productId,
                 -quantity,
                 'prescription',
@@ -521,6 +531,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             );
         }
 
+        const actor = getCurrentActor();
+        await apiService.markPrescriptionDispensed(prescriptionOrderId, actor);
         setPrescriptionOrders((prev) =>
             prev.map((order) => (
                 order.id === prescriptionOrderId
@@ -528,7 +540,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                         ...order,
                         status: 'dispensed',
                         dispensedAt: new Date().toISOString(),
-                        dispensedBy: getCurrentActor(),
+                        dispensedBy: actor,
                     }
                     : order
             ))
@@ -537,10 +549,11 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         return { ok: true as const };
     }, [prescriptionOrders, products, adjustProductStock, logActivity]);
 
-    const cancelPrescriptionOrder = useCallback((prescriptionOrderId: string, reason?: string) => {
+    const cancelPrescriptionOrder = useCallback(async (prescriptionOrderId: string, reason?: string) => {
         const current = prescriptionOrders.find((order) => order.id === prescriptionOrderId);
         if (!current || current.status === 'dispensed') return;
 
+        await apiService.cancelPrescriptionOrder(prescriptionOrderId, reason);
         setPrescriptionOrders((prev) =>
             prev.map((order) => (
                 order.id === prescriptionOrderId
