@@ -24,7 +24,7 @@ interface ProductFormProps {
 
 export function ProductForm({ isOpen, onClose, onSubmit, product }: ProductFormProps) {
     const { register, handleSubmit, formState: { errors }, reset } = useForm<ProductFormData>({
-        resolver: zodResolver(productSchema),
+        resolver: zodResolver(productSchema) as any,
         defaultValues: product ? {
             name: product.name,
             category: product.category,

@@ -24,7 +24,7 @@ interface PatientFormProps {
 
 export function PatientForm({ isOpen, onClose, onSubmit, patient }: PatientFormProps) {
     const { register, handleSubmit, formState: { errors }, reset } = useForm<PatientFormData>({
-        resolver: zodResolver(patientSchema),
+        resolver: zodResolver(patientSchema) as any,
         defaultValues: patient ? {
             name: patient.name,
             species: patient.species,

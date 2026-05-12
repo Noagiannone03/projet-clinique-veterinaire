@@ -47,7 +47,7 @@ export function InvoiceForm({ isOpen, onClose, onSubmit, defaultPatientId, defau
     }));
 
     const { register, handleSubmit, control, formState: { errors }, reset, watch } = useForm<InvoiceFormData>({
-        resolver: zodResolver(invoiceSchema),
+        resolver: zodResolver(invoiceSchema) as any,
         defaultValues: {
             patientId: defaultPatientId || '',
             dueDate: createDefaultDueDate(),

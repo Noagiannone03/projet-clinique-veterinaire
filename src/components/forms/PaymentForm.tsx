@@ -24,7 +24,7 @@ interface PaymentFormProps {
 
 export function PaymentForm({ isOpen, onClose, onSubmit, invoiceNumber, remainingAmount }: PaymentFormProps) {
     const { register, handleSubmit, formState: { errors }, reset } = useForm<PaymentFormData>({
-        resolver: zodResolver(paymentSchema),
+        resolver: zodResolver(paymentSchema) as any,
         defaultValues: {
             amount: remainingAmount,
             method: 'card',

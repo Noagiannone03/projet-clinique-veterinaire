@@ -20,7 +20,7 @@ interface VaccinationFormProps {
 
 export function VaccinationForm({ isOpen, onClose, onSubmit, patientName }: VaccinationFormProps) {
     const { register, handleSubmit, formState: { errors }, reset } = useForm<VaccinationFormData>({
-        resolver: zodResolver(vaccinationSchema),
+        resolver: zodResolver(vaccinationSchema) as any,
         defaultValues: {
             date: new Date().toISOString().split('T')[0],
         },

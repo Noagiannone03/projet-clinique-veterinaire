@@ -10,7 +10,7 @@ export const ownerSchema = z.object({
 
 export const patientSchema = z.object({
     name: z.string().min(1, 'Le nom est requis'),
-    species: z.enum(['dog', 'cat', 'bird', 'rabbit', 'other'], { required_error: 'Espece requise' }),
+    species: z.enum(['dog', 'cat', 'bird', 'rabbit', 'other']),
     breed: z.string().min(1, 'La race est requise'),
     birthDate: z.string().min(1, 'Date de naissance requise'),
     weight: z.coerce.number().positive('Le poids doit etre positif'),
@@ -24,14 +24,14 @@ export const appointmentSchema = z.object({
     date: z.string().min(1, 'Date requise'),
     time: z.string().min(1, 'Heure requise'),
     duration: z.coerce.number().min(15, 'Duree minimum 15 minutes').max(240, 'Duree maximum 4 heures'),
-    type: z.enum(['consultation', 'vaccination', 'surgery', 'follow-up', 'emergency'], { required_error: 'Type requis' }),
+    type: z.enum(['consultation', 'vaccination', 'surgery', 'follow-up', 'emergency']),
     veterinarian: z.string().min(1, 'Veterinaire requis'),
     notes: z.string().optional(),
 });
 
 export const productSchema = z.object({
     name: z.string().min(1, 'Le nom est requis'),
-    category: z.enum(['medication', 'food', 'accessory', 'hygiene', 'supplement'], { required_error: 'Categorie requise' }),
+    category: z.enum(['medication', 'food', 'accessory', 'hygiene', 'supplement']),
     sku: z.string().min(1, 'Le SKU est requis'),
     stock: z.coerce.number().min(0, 'Le stock ne peut pas etre negatif'),
     minStock: z.coerce.number().min(0, 'Le seuil minimum ne peut pas etre negatif'),
@@ -65,7 +65,7 @@ export const invoiceSchema = z.object({
 
 export const medicalRecordSchema = z.object({
     date: z.string().min(1, 'Date requise'),
-    type: z.enum(['consultation', 'surgery', 'emergency', 'follow-up'], { required_error: 'Type requis' }),
+    type: z.enum(['consultation', 'surgery', 'emergency', 'follow-up']),
     diagnosis: z.string().min(1, 'Diagnostic requis'),
     treatment: z.string().min(1, 'Traitement requis'),
     notes: z.string().optional(),
@@ -76,7 +76,7 @@ export const medicalRecordSchema = z.object({
         frequency: z.string().min(1, 'Frequence requise'),
         duration: z.string().min(1, 'Duree requise'),
         instructions: z.string().optional(),
-    })).optional().default([]),
+    })).default([]),
 });
 
 export const vaccinationSchema = z.object({
@@ -88,13 +88,13 @@ export const vaccinationSchema = z.object({
 
 export const paymentSchema = z.object({
     amount: z.coerce.number().positive('Le montant doit etre positif'),
-    method: z.enum(['card', 'cash', 'check', 'transfer'], { required_error: 'Methode de paiement requise' }),
+    method: z.enum(['card', 'cash', 'check', 'transfer']),
     date: z.string().min(1, 'Date requise'),
 });
 
 export const stockAdjustmentSchema = z.object({
     delta: z.coerce.number().refine((v) => v !== 0, 'La quantite ne peut pas etre zero'),
-    reason: z.enum(['sale', 'reception', 'loss', 'counter_sale', 'prescription'], { required_error: 'Raison requise' }),
+    reason: z.enum(['sale', 'reception', 'loss', 'counter_sale', 'prescription']),
     note: z.string().optional(),
 });
 

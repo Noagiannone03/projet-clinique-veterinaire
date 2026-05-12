@@ -18,7 +18,7 @@ const categoryColors: Record<Product['category'], string> = {
 };
 
 export function Inventory() {
-    const { products, addProduct, updateProduct, deleteProduct, adjustProductStock } = useClinicData();
+    const { products, addProduct, updateProduct, adjustProductStock } = useClinicData();
     const { role } = useAuth();
     const toast = useToast();
 

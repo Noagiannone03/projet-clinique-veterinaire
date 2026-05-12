@@ -29,7 +29,7 @@ interface MedicalRecordFormProps {
 
 export function MedicalRecordForm({ isOpen, onClose, onSubmit, patientName }: MedicalRecordFormProps) {
     const { register, handleSubmit, control, formState: { errors }, reset } = useForm<MedicalRecordFormData>({
-        resolver: zodResolver(medicalRecordSchema),
+        resolver: zodResolver(medicalRecordSchema) as any,
         defaultValues: {
             date: new Date().toISOString().split('T')[0],
             prescriptions: [],

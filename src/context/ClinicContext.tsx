@@ -97,10 +97,6 @@ function generateId(prefix: string): string {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function loadState<T>(key: string, fallback: T): T {
-    return storage.get<T>(key) ?? fallback;
-}
-
 function getCurrentActor(): string {
     return localStorage.getItem('vetcare_user_name')
         || localStorage.getItem('vetcare_role')
@@ -110,25 +106,6 @@ function getCurrentActor(): string {
 function toSafeQuantity(quantity: number): number {
     if (!Number.isFinite(quantity)) return 1;
     return Math.max(1, Math.round(quantity));
-}
-
-function normalizePrescriptionOrders(list: PrescriptionOrder[]): PrescriptionOrder[] {
-    return list.map((order) => ({
-        ...order,
-        status: order.status ?? 'pending',
-        printedCount: order.printedCount ?? 0,
-        lines: order.lines.map((line) => ({
-            ...line,
-            id: line.id || generateId('rxl'),
-            quantity: toSafeQuantity(line.quantity),
-        })),
-    }));
-}
-
-function parsePrescriptionQuantity(text: string): number {
-    const match = text.replace(',', '.').match(/\d+(\.\d+)?/);
-    if (!match) return 1;
-    return toSafeQuantity(Math.ceil(Number(match[0])));
 }
 
 // Removed buildInitialPrescriptionOrders
@@ -161,11 +138,10 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 
                 // Derive prescription orders from medical history
                 const orders: PrescriptionOrder[] = [];
-                pts.forEach(p => {
-                    p.medicalHistory?.forEach(m => {
-                        if (m.prescriptions?.length > 0) {
-                            // Map medical record to a prescription order if needed
-                            // For now we start with an empty list or implement the mapping
+                pts.forEach((p: Patient) => {
+                    p.medicalHistory?.forEach((m: MedicalRecord) => {
+                        if (m.prescriptions && m.prescriptions.length > 0) {
+                            // Mapping logic could go here
                         }
                     });
                 });

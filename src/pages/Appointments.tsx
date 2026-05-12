@@ -9,7 +9,7 @@ import type { DateSelectArg, EventApi, EventClickArg, EventContentArg, EventDrop
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
-    Plus, X, UserCheck, Stethoscope, CheckCircle,
+    Plus, X, UserCheck,
     ChevronLeft, ChevronRight, Lock, Unlock, ArrowRight,
     Calendar as CalendarIcon,
 } from 'lucide-react';
@@ -57,21 +57,7 @@ const typeInfo: Record<Appointment['type'], { icon: string; label: string }> = {
     emergency: { icon: '🚨', label: 'Urgence' },
 };
 
-const appointmentBillingLabel: Record<Appointment['type'], string> = {
-    consultation: 'Consultation clinique',
-    vaccination: 'Acte de vaccination',
-    surgery: 'Intervention chirurgicale',
-    'follow-up': 'Consultation de suivi',
-    emergency: 'Prise en charge urgence',
-};
-
-const appointmentDefaultPrice: Record<Appointment['type'], number> = {
-    consultation: 45,
-    vaccination: 75,
-    surgery: 180,
-    'follow-up': 35,
-    emergency: 95,
-};
+/* -- Billing constants removed as unused in this view -- */
 
 const speciesEmoji: Record<Appointment['species'], string> = {
     dog: '🐕', cat: '🐈', bird: '🐦', rabbit: '🐇', other: '🐾',
@@ -115,8 +101,8 @@ function getPreferredVetName(userName: string | undefined, vets: string[]): stri
 export function Appointments() {
     const {
         patients, appointments,
-        addAppointment, updateAppointmentStatus, updateAppointmentSchedule,
-        updateAppointment, cancelAppointment, addInvoice,
+        updateAppointmentStatus, updateAppointmentSchedule,
+        updateAppointment, cancelAppointment,
     } = useClinicData();
     const navigate = useNavigate();
     const { role, user } = useAuth();
@@ -248,25 +234,7 @@ export function Appointments() {
         return { total, completed, remaining };
     }, [metricToday]);
 
-    const createAutoInvoiceFromAppointment = (appointment: Appointment) => {
-        const patient = patients.find((p) => p.id === appointment.patientId);
-        if (!patient) return null;
-        return addInvoice({
-            patientId: appointment.patientId,
-            patientName: patient.name,
-            ownerName: `${patient.owner.firstName} ${patient.owner.lastName}`,
-            source: 'consultation',
-            sourceAppointmentId: appointment.id,
-            date: appointment.date,
-            dueDate: appointment.date,
-            lines: [{
-                lineType: 'service',
-                description: appointmentBillingLabel[appointment.type],
-                quantity: 1,
-                unitPrice: appointmentDefaultPrice[appointment.type],
-            }],
-        });
-    };
+    /* -- Auto-invoice helper removed as unused -- */
 
     /* -- Actions (role-aware) -- */
     const getActions = (apt: Appointment): AppointmentAction[] => {

@@ -24,7 +24,7 @@ interface StockAdjustmentFormProps {
 
 export function StockAdjustmentForm({ isOpen, onClose, onSubmit, productName, currentStock }: StockAdjustmentFormProps) {
     const { register, handleSubmit, formState: { errors }, reset } = useForm<StockAdjustmentFormData>({
-        resolver: zodResolver(stockAdjustmentSchema),
+        resolver: zodResolver(stockAdjustmentSchema) as any,
     });
 
     const handleFormSubmit = (data: StockAdjustmentFormData) => {

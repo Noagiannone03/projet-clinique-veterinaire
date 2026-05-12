@@ -98,7 +98,7 @@ export function AppointmentBookingPanel({ isOpen, onClose, onBooked, defaultDate
 
     // ── Patient form ──
     const patientForm = useForm<PatientFormData>({
-        resolver: zodResolver(patientSchema),
+        resolver: zodResolver(patientSchema) as any,
     });
 
     // ── Helpers ──

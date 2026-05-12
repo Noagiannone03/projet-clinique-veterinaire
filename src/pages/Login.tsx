@@ -2,29 +2,16 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-    Stethoscope,
-    Briefcase,
-    Headset,
     Mail,
     Lock,
     Eye,
     EyeOff,
     ShieldCheck,
 } from 'lucide-react';
-import type { Role } from '../types';
+// Role import removed
 import clinicLogo from '../assets/logoclinique copie.png';
 
-const roleIcons: Record<Role, React.ReactNode> = {
-    director: <Briefcase className="h-5 w-5" />,
-    veterinarian: <Stethoscope className="h-5 w-5" />,
-    assistant: <Headset className="h-5 w-5" />,
-};
-
-const roleTitles: Record<Role, string> = {
-    director: 'Directeur',
-    veterinarian: 'Veterinaire',
-    assistant: 'Assistante',
-};
+// Removed unused role constants
 
 export function Login() {
     const { login } = useAuth();
