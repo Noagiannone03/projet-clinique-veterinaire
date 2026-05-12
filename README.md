@@ -33,12 +33,18 @@ Le projet est organisé en deux parties principales :
    ```env
    DATABASE_URL="postgresql://VOTRE_USER:VOTRE_PASSWORD@127.0.0.1:5432/clinique_veterinaire?serverVersion=16&charset=utf8"
    ```
-4. Créez la base de données et les tables :
+4. Importez les données de test (optionnel) :
    ```bash
+   # Créez d'abord la base de données
    php bin/console doctrine:database:create
+   # Importez le dump SQL
+   psql -U VOTRE_USER -d clinique_veterinaire < ../database_export.sql
+   ```
+5. Ou lancez les migrations si vous repartez de zéro :
+   ```bash
    php bin/console doctrine:migrations:migrate
    ```
-5. Lancez le serveur backend :
+6. Lancez le serveur backend :
    ```bash
    symfony server:start -d
    # OU
