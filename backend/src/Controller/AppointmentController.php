@@ -15,15 +15,53 @@ class AppointmentController extends AbstractController
     {
         $appointments = $appointmentRepo->findAll();
         
-        return $this->json(array_map(fn($a) => [
-            'id' => $a->getId(),
-            'animal' => $a->getAnimal() ? $a->getAnimal()->getNom() : null,
-            'owner' => $a->getOwner() ? ($a->getOwner()->getPrenom() . ' ' . $a->getOwner()->getNom()) : null,
-            'vet' => $a->getVeterinarian() ? $a->getVeterinarian()->getNom() : null,
-            'motif' => $a->getMotif(),
-            'start' => $a->getStartTime()->format('Y-m-d H:i'),
-            'end' => $a->getEndTime()->format('Y-m-d H:i'),
-            'status' => $a->getStatut(),
-        ], $appointments));
+        return $this->json(array_map(function($a) {
+            $animal = $a->getAnimal();
+            $owner = $a->getOwner();
+            $vet = $a->getVeterinarian();
+            
+            $start = $a->getStartTime();
+            $end = $a->getEndTime();
+            $duration = 30;
+            if ($start && $end) {
+                $duration = ($end->getTimestamp() - $start->getTimestamp()) / 60;
+            }
+
+            return [
+                'id' => (string)$a->getId(),
+                'patientId' => $animal ? (string)$animal->getId() : '0',
+                'patientName' => $animal ? $animal->getNom() : 'Inconnu',
+                'ownerName' => $owner ? ($owner->getPrenom() . ' ' . $owner->getNom()) : 'Inconnu',
+                'species' => $animal ? $this->mapSpecies($animal->getEspece()) : 'other',
+                'date' => $start ? $start->format('Y-m-d') : '',
+                'time' => $start ? $start->format('H:i') : '',
+                'duration' => (int)$duration,
+                'type' => $a->getMotif() ?? 'Consultation',
+                'status' => $this->mapStatus($a->getStatut()),
+                'veterinarian' => $vet ? $vet->getNom() : 'Dr. Martin',
+                'notes' => $a->getNotes() ?? '',
+            ];
+        }, $appointments));
+    }
+
+    private function mapSpecies(?string $species): string
+    {
+        return match (strtolower($species ?? '')) {
+            'chien' => 'dog',
+            'chat' => 'cat',
+            'oiseau' => 'bird',
+            'lapin' => 'rabbit',
+            default => 'other',
+        };
+    }
+
+    private function mapStatus(?string $status): string
+    {
+        return match (strtolower($status ?? '')) {
+            'confirme' => 'confirmed',
+            'termine' => 'completed',
+            'annule' => 'cancelled',
+            default => 'scheduled',
+        };
     }
 }

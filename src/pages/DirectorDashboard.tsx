@@ -25,7 +25,7 @@ import {
     Bar,
     Cell,
 } from 'recharts';
-import { revenueData } from '../data/invoices';
+// Removed revenueData import, will calculate from invoices
 import {
     getLowStockProducts,
     getOverdueInvoices,
@@ -58,6 +58,25 @@ export function DirectorDashboard() {
     const totalInvoiced = invoices.reduce((sum, i) => sum + i.total, 0);
     const encashmentRate = totalInvoiced > 0 ? Math.round((totalRevenue / totalInvoiced) * 100) : 0;
     const overdueTotal = overdueInvoices.reduce((s, i) => s + i.total, 0);
+    
+    // Monthly revenue data for chart
+    const revenueData = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - (5 - i));
+        const monthLabel = format(d, 'MMM', { locale: fr });
+        const monthYear = format(d, 'yyyy-MM');
+        
+        const monthlyInvoices = invoices.filter(inv => inv.date.startsWith(monthYear));
+        const revenue = monthlyInvoices
+            .filter(inv => inv.status === 'paid' || inv.status === 'partial')
+            .reduce((sum, inv) => sum + inv.total, 0);
+            
+        return {
+            month: monthLabel,
+            revenue: revenue,
+            target: 15000, // Fixed target for demo
+        };
+    });
 
     // Weekly consultation data
     const weeklyData = Array.from({ length: 7 }, (_, i) => {

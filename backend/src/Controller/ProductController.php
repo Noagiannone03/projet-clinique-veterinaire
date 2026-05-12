@@ -16,13 +16,14 @@ class ProductController extends AbstractController
         $products = $productRepo->findAll();
         
         return $this->json(array_map(fn($p) => [
-            'id' => $p->getId(),
+            'id' => (string)$p->getId(),
             'name' => $p->getNom(),
-            'category' => $p->getCategorie(),
-            'unitPrice' => $p->getUnitPrice(),
-            'stock' => $p->getStockQuantity(),
-            'threshold' => $p->getAlertThreshold(),
-            'description' => $p->getDescription(),
+            'category' => $p->getCategorie() ?? 'Autre',
+            'price' => (float)$p->getUnitPrice(),
+            'stock' => (int)$p->getStockQuantity(),
+            'minStock' => (int)$p->getAlertThreshold(),
+            'description' => $p->getDescription() ?? '',
+            'unit' => 'unité',
         ], $products));
     }
 }

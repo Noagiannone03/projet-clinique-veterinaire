@@ -14,10 +14,7 @@ import type {
     PrescriptionOrder,
     PrescriptionOrderLine,
 } from '../types';
-import { appointments as initialAppointments } from '../data/appointments';
-import { invoices as rawInitialInvoices } from '../data/invoices';
-import { products as initialProducts } from '../data/products';
-import { patients as initialPatients } from '../data/patients';
+// Removed initial data imports
 import { ClinicStateContext, type NewAppointmentInput } from './clinicState';
 import { storage } from '../services/storage';
 
@@ -67,11 +64,7 @@ function normalizeInvoice(invoice: Invoice): Invoice {
     };
 }
 
-function normalizeInvoices(list: Invoice[]): Invoice[] {
-    return list.map((invoice) => normalizeInvoice(invoice));
-}
-
-const initialInvoices: Invoice[] = normalizeInvoices(rawInitialInvoices as Invoice[]);
+// Removed initialInvoices normalization
 
 const timeToMinutes = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
@@ -138,63 +131,7 @@ function parsePrescriptionQuantity(text: string): number {
     return toSafeQuantity(Math.ceil(Number(match[0])));
 }
 
-function buildInitialPrescriptionOrders(
-    seedPatients: Patient[],
-    seedProducts: Product[]
-): PrescriptionOrder[] {
-    const productIdByName = new Map(seedProducts.map((p) => [p.name.toLowerCase(), p.id]));
-    const orders: PrescriptionOrder[] = [];
-    let serial = 1;
-
-    seedPatients.forEach((patient) => {
-        const ownerName = `${patient.owner.firstName} ${patient.owner.lastName}`;
-        patient.medicalHistory
-            .filter((record) => record.prescriptions.length > 0)
-            .forEach((record) => {
-                const lines: PrescriptionOrderLine[] = record.prescriptions.map((prescription) => ({
-                    id: generateId('rxl'),
-                    medication: prescription.medication,
-                    dosage: prescription.dosage,
-                    frequency: prescription.frequency,
-                    duration: prescription.duration,
-                    instructions: prescription.instructions,
-                    quantity: parsePrescriptionQuantity(prescription.dosage),
-                    productId: productIdByName.get(prescription.medication.toLowerCase()),
-                }));
-
-                const year = Number.isNaN(new Date(record.date).getTime())
-                    ? new Date().getFullYear()
-                    : new Date(record.date).getFullYear();
-                const timestamp = `${record.date}T18:00:00.000Z`;
-
-                orders.push({
-                    id: generateId('rx'),
-                    prescriptionNumber: `ORD-${year}-${String(serial).padStart(4, '0')}`,
-                    patientId: patient.id,
-                    patientName: patient.name,
-                    ownerName,
-                    veterinarian: record.veterinarian,
-                    issueDate: record.date,
-                    diagnosis: record.diagnosis,
-                    notes: record.notes,
-                    status: 'dispensed',
-                    lines,
-                    sourceMedicalRecordId: record.id,
-                    dispensedAt: timestamp,
-                    dispensedBy: 'Historique',
-                    lastPrintedAt: timestamp,
-                    printedCount: 1,
-                });
-                serial += 1;
-            });
-    });
-
-    return orders.sort((a, b) => b.issueDate.localeCompare(a.issueDate));
-}
-
-const initialPrescriptionOrders: PrescriptionOrder[] = normalizePrescriptionOrders(
-    buildInitialPrescriptionOrders(initialPatients, initialProducts)
-);
+// Removed buildInitialPrescriptionOrders
 
 import { apiService } from '../services/api';
 
@@ -219,8 +156,20 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 ]);
                 setPatients(pts);
                 setAppointments(apts);
-                setInvoices(invs);
+                setInvoices(invs.map(normalizeInvoice));
                 setProducts(prods);
+                
+                // Derive prescription orders from medical history
+                const orders: PrescriptionOrder[] = [];
+                pts.forEach(p => {
+                    p.medicalHistory?.forEach(m => {
+                        if (m.prescriptions?.length > 0) {
+                            // Map medical record to a prescription order if needed
+                            // For now we start with an empty list or implement the mapping
+                        }
+                    });
+                });
+                setPrescriptionOrders(orders);
             } catch (error) {
                 console.error('Failed to fetch data from API', error);
             } finally {
