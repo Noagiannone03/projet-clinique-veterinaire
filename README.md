@@ -1,75 +1,77 @@
-# React + TypeScript + Vite
+# 🐾 Clinique Vétérinaire - Gestion de Cabinet
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Ce projet est une application complète de gestion pour une clinique vétérinaire, comprenant un frontend en **React (Vite/TypeScript)** et un backend en **Symfony (PHP 8)** avec une base de données **PostgreSQL**.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 📁 Structure du Projet
 
-## React Compiler
+Le projet est organisé en deux parties principales :
+- `backend/` : API Symfony (Logique métier, Authentification, Base de données).
+- `frontend/` : Application React (Interface utilisateur, État clinique).
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+---
 
-Note: This will impact Vite dev & build performances.
+## 🚀 Installation et Lancement
 
-## Expanding the ESLint configuration
+### 1. Prérequis
+- **PHP 8.1+** et **Composer**
+- **Node.js 18+** et **npm**
+- **PostgreSQL** (installé et en cours d'exécution)
+- **Symfony CLI** (recommandé pour le serveur local)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 2. Configuration du Backend
+1. Entrez dans le dossier backend :
+   ```bash
+   cd backend
+   ```
+2. Installez les dépendances PHP :
+   ```bash
+   composer install
+   ```
+3. Configurez votre base de données dans le fichier `.env` ou `.env.local` :
+   ```env
+   DATABASE_URL="postgresql://VOTRE_USER:VOTRE_PASSWORD@127.0.0.1:5432/clinique_veterinaire?serverVersion=16&charset=utf8"
+   ```
+4. Créez la base de données et les tables :
+   ```bash
+   php bin/console doctrine:database:create
+   php bin/console doctrine:migrations:migrate
+   ```
+5. Lancez le serveur backend :
+   ```bash
+   symfony server:start -d
+   # OU
+   php -S localhost:8000 -t public
+   ```
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 3. Configuration du Frontend
+1. Entrez dans le dossier frontend :
+   ```bash
+   cd frontend
+   ```
+2. Installez les dépendances npm :
+   ```bash
+   npm install
+   ```
+3. Lancez le serveur de développement :
+   ```bash
+   npm run dev
+   ```
+4. L'application est accessible sur [http://localhost:5173](http://localhost:5173).
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🔐 Identifiants de test (Demo)
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+L'application utilise les rôles suivants :
+- **Directeur** : `michel.lannes@clinique-etangs.fr` / `admin`
+- **Vétérinaire** : `dr.martin@clinique-etangs.fr` / `admin`
+- **Assistant** : `sophie.legrand@clinique-etangs.fr` / `admin`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🛠️ Technologies utilisées
+- **Frontend** : React 19, Vite, Tailwind CSS, Lucide React, Recharts, FullCalendar.
+- **Backend** : Symfony 7, Doctrine ORM, NelmioCorsBundle.
+- **Base de données** : PostgreSQL.
