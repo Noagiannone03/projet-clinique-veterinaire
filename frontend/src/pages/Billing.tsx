@@ -500,7 +500,7 @@ export function Billing() {
         partial: invoices.filter((i) => i.status === 'partial').length,
     }), [invoices]);
 
-    const handlePayment = (data: PaymentFormData) => {
+    const handlePayment = async (data: PaymentFormData) => {
         if (!payingInvoice) return;
         const remaining = Math.max(payingInvoice.total - getInvoicePaidAmount(payingInvoice), 0);
         const amount = Math.min(data.amount, remaining);
@@ -511,7 +511,7 @@ export function Billing() {
         if (data.amount > remaining) {
             toast.error(`Montant ajuste au restant (${remaining.toFixed(2)} EUR)`);
         }
-        recordPayment(payingInvoice.id, {
+        await recordPayment(payingInvoice.id, {
             amount,
             method: data.method,
             date: data.date,
@@ -747,8 +747,8 @@ export function Billing() {
                 <InvoiceForm
                     isOpen={!!editingInvoice}
                     onClose={() => setEditingInvoice(null)}
-                    onSubmit={(data: InvoiceFormData) => {
-                        updateInvoiceData(editingInvoice.id, data.lines);
+                    onSubmit={async (data: InvoiceFormData) => {
+                        await updateInvoiceData(editingInvoice.id, data.lines);
                         toast.success('Facture modifiée avec succès');
                         setEditingInvoice(null);
                     }}

@@ -248,7 +248,7 @@ export function Appointments() {
 
         // Assistant: manage arrivals & billing, but NOT consultations
         if (apt.status === 'scheduled')
-            a.push({ label: 'Marquer arrivé', icon: UserCheck, variant: 'primary', onClick: () => { updateAppointmentStatus(apt.id, 'arrived'); toast.success('Patient arrivé'); } });
+            a.push({ label: 'Marquer arrivé', icon: UserCheck, variant: 'primary', onClick: async () => { await updateAppointmentStatus(apt.id, 'arrived'); toast.success('Patient arrivé'); } });
         if (apt.status === 'completed')
             a.push({ label: 'Facturation', icon: ArrowRight, variant: 'primary', onClick: () => navigate('/billing') });
         return a;
@@ -714,10 +714,10 @@ export function Appointments() {
                 <AppointmentForm
                     isOpen={showEditAppointment}
                     onClose={() => setShowEditAppointment(false)}
-                    onSubmit={(data, force = false) => {
+                    onSubmit={async (data, force = false) => {
                         const p = patients.find((pt) => pt.id === data.patientId);
                         if (!p) { toast.error('Patient introuvable'); return { ok: false, message: 'Patient introuvable' }; }
-                        const r = updateAppointment(selectedAppt.id, { ...data, patientName: p.name, ownerName: `${p.owner.firstName} ${p.owner.lastName}`, species: p.species, duration: Number(data.duration) }, force);
+                        const r = await updateAppointment(selectedAppt.id, { ...data, patientName: p.name, ownerName: `${p.owner.firstName} ${p.owner.lastName}`, species: p.species, duration: Number(data.duration) }, force);
                         if (!r.ok) { toast.error(r.message); return r; }
                         toast.success('Rendez-vous modifié');
                         setShowEditAppointment(false);
@@ -742,8 +742,8 @@ export function Appointments() {
                             rows={3} placeholder="Entrez le motif…" />
                         <div className="flex justify-end gap-3">
                             <Button variant="outline" onClick={() => setShowCancelDialog(false)}>Retour</Button>
-                            <Button variant="danger" disabled={!cancelReason.trim()} onClick={() => {
-                                cancelAppointment(selectedAppt.id, cancelReason);
+                            <Button variant="danger" disabled={!cancelReason.trim()} onClick={async () => {
+                                await cancelAppointment(selectedAppt.id, cancelReason);
                                 toast.success('Rendez-vous annulé');
                                 setShowCancelDialog(false); setCancelReason(''); setSelectedId(null);
                             }}>Confirmer</Button>
@@ -755,9 +755,9 @@ export function Appointments() {
             <ConfirmDialog
                 isOpen={!!pendingMove}
                 onClose={() => { pendingMove?.revert(); setPendingMove(null); }}
-                onConfirm={() => {
+                onConfirm={async () => {
                     if (!pendingMove) return;
-                    const r = updateAppointmentSchedule(pendingMove.id, { date: pendingMove.date, time: pendingMove.time, duration: pendingMove.duration });
+                    const r = await updateAppointmentSchedule(pendingMove.id, { date: pendingMove.date, time: pendingMove.time, duration: pendingMove.duration });
                     if (!r.ok) { toast.error(r.message); pendingMove.revert(); setPendingMove(null); return; }
                     toast.success('Rendez-vous reprogrammé'); setPendingMove(null);
                 }}

@@ -40,41 +40,41 @@ export interface ClinicContextValue {
     loading: boolean;
 
     // Patients CRUD
-    addPatient: (patient: Omit<Patient, 'id' | 'alerts' | 'vaccinations' | 'medicalHistory'>) => Patient;
-    updatePatient: (id: string, data: Partial<Patient>) => void;
-    deletePatient: (id: string) => void;
-    addMedicalRecord: (patientId: string, record: Omit<MedicalRecord, 'id'>) => MedicalRecord;
-    addVaccination: (patientId: string, vaccination: Omit<Vaccination, 'id'>) => void;
+    addPatient: (patient: Omit<Patient, 'id' | 'alerts' | 'vaccinations' | 'medicalHistory'>) => Promise<Patient>;
+    updatePatient: (id: string, data: Partial<Patient>) => Promise<void>;
+    deletePatient: (id: string) => Promise<void>;
+    addMedicalRecord: (patientId: string, record: Omit<MedicalRecord, 'id'>) => Promise<MedicalRecord>;
+    addVaccination: (patientId: string, vaccination: Omit<Vaccination, 'id'>) => Promise<void>;
     addAlert: (patientId: string, alert: Omit<Alert, 'id'>) => void;
     removeAlert: (patientId: string, alertId: string) => void;
 
     // Appointments CRUD
-    addAppointment: (input: NewAppointmentInput, force?: boolean) => { ok: true } | { ok: false; message: string; conflict?: Appointment };
-    updateAppointment: (id: string, data: Partial<Appointment>, force?: boolean) => { ok: true } | { ok: false; message: string; conflict?: Appointment };
-    deleteAppointment: (id: string) => void;
-    updateAppointmentStatus: (appointmentId: string, status: Appointment['status']) => void;
+    addAppointment: (input: NewAppointmentInput, force?: boolean) => Promise<{ ok: true } | { ok: false; message: string; conflict?: Appointment }>;
+    updateAppointment: (id: string, data: Partial<Appointment>, force?: boolean) => Promise<{ ok: true } | { ok: false; message: string; conflict?: Appointment }>;
+    deleteAppointment: (id: string) => Promise<void>;
+    updateAppointmentStatus: (appointmentId: string, status: Appointment['status']) => Promise<void>;
     updateAppointmentSchedule: (
         appointmentId: string,
         patch: { date: string; time: string; duration?: number }
-    ) => { ok: true } | { ok: false; message: string; conflict?: Appointment };
-    cancelAppointment: (id: string, reason: string) => void;
+    ) => Promise<{ ok: true } | { ok: false; message: string; conflict?: Appointment }>;
+    cancelAppointment: (id: string, reason: string) => Promise<void>;
 
     // Products CRUD
-    addProduct: (product: Omit<Product, 'id'>) => Product;
-    updateProduct: (id: string, data: Partial<Product>) => void;
-    deleteProduct: (id: string) => void;
-    adjustProductStock: (productId: string, delta: number, reason?: StockMovement['reason'], note?: string) => void;
+    addProduct: (product: Omit<Product, 'id'>) => Promise<Product>;
+    updateProduct: (id: string, data: Partial<Product>) => Promise<void>;
+    deleteProduct: (id: string) => Promise<void>;
+    adjustProductStock: (productId: string, delta: number, reason?: StockMovement['reason'], note?: string) => Promise<void>;
 
     // Invoices CRUD
     addInvoice: (
         invoice: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total' | 'lines'> & {
             lines: InvoiceLineInput[];
         }
-    ) => Invoice;
-    updateInvoice: (id: string, data: Partial<Invoice>) => void;
-    updateInvoiceData: (id: string, lines: InvoiceLineInput[]) => void;
-    recordPayment: (invoiceId: string, payment: Omit<Payment, 'id' | 'invoiceId'>) => void;
-    recordInvoicePayment: (invoiceId: string) => void;
+    ) => Promise<Invoice>;
+    updateInvoice: (id: string, data: Partial<Invoice>) => Promise<void>;
+    updateInvoiceData: (id: string, lines: InvoiceLineInput[]) => Promise<void>;
+    recordPayment: (invoiceId: string, payment: Omit<Payment, 'id' | 'invoiceId'>) => Promise<void>;
+    recordInvoicePayment: (invoiceId: string) => Promise<void>;
 
     // Prescriptions workflow
     createPrescriptionOrder: (order: {

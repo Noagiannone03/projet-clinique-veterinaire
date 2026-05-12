@@ -153,9 +153,9 @@ export function AppointmentBookingPanel({ isOpen, onClose, onBooked, defaultDate
     const canGoToStep3 = !!aptDate && !!aptTime && !!aptVet && !!aptType;
 
     // ── Submit ──
-    const handleBook = (force = false) => {
+    const handleBook = async (force = false) => {
         if (!selectedPatient) return;
-        const result = addAppointment({
+        const result = await addAppointment({
             patientId: selectedPatient.id,
             patientName: selectedPatient.name,
             ownerName: `${selectedPatient.owner.firstName} ${selectedPatient.owner.lastName}`,
@@ -179,8 +179,8 @@ export function AppointmentBookingPanel({ isOpen, onClose, onBooked, defaultDate
     };
 
     // ── New patient submit ──
-    const handleCreatePatient = (data: PatientFormData) => {
-        const newPatient = addPatient({
+    const handleCreatePatient = async (data: PatientFormData) => {
+        const newPatient = await addPatient({
             name: data.name,
             species: data.species,
             breed: data.breed,

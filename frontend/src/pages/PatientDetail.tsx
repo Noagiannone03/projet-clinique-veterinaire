@@ -77,8 +77,8 @@ export function PatientDetail() {
         .filter((order) => order.patientId === patient.id)
         .sort((a, b) => b.issueDate.localeCompare(a.issueDate));
 
-    const handleUpdatePatient = (data: PatientFormData) => {
-        updatePatient(patient.id, {
+    const handleUpdatePatient = async (data: PatientFormData) => {
+        await updatePatient(patient.id, {
             name: data.name,
             species: data.species,
             breed: data.breed,
@@ -91,8 +91,8 @@ export function PatientDetail() {
         toast.success('Patient modifie');
     };
 
-    const handleAddRecord = (data: MedicalRecordFormData) => {
-        const createdRecord = addMedicalRecord(patient.id, {
+    const handleAddRecord = async (data: MedicalRecordFormData) => {
+        const createdRecord = await addMedicalRecord(patient.id, {
             date: data.date,
             type: data.type,
             diagnosis: data.diagnosis,
@@ -139,13 +139,13 @@ export function PatientDetail() {
         toast.success('Consultation ajoutee');
     };
 
-    const handleAddVaccination = (data: VaccinationFormData) => {
-        addVaccination(patient.id, data);
+    const handleAddVaccination = async (data: VaccinationFormData) => {
+        await addVaccination(patient.id, data);
         toast.success('Vaccination ajoutee');
     };
 
-    const handleAddAppointment = (data: AppointmentFormData, force = false) => {
-        const result = addAppointment({
+    const handleAddAppointment = async (data: AppointmentFormData, force = false) => {
+        const result = await addAppointment({
             patientId: patient.id,
             patientName: patient.name,
             ownerName: `${patient.owner.firstName} ${patient.owner.lastName}`,
@@ -162,8 +162,8 @@ export function PatientDetail() {
         return result;
     };
 
-    const handleDelete = () => {
-        deletePatient(patient.id);
+    const handleDelete = async () => {
+        await deletePatient(patient.id);
         toast.success('Patient supprime');
         navigate('/patients');
     };

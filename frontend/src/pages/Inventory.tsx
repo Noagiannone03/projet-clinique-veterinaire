@@ -45,27 +45,27 @@ export function Inventory() {
 
     const canManage = role === 'assistant';
 
-    const handleAddProduct = (data: ProductFormData) => {
-        addProduct(data);
+    const handleAddProduct = async (data: ProductFormData) => {
+        await addProduct(data);
         toast.success('Produit ajoute');
     };
 
-    const handleEditProduct = (data: ProductFormData) => {
+    const handleEditProduct = async (data: ProductFormData) => {
         if (!editingProduct) return;
-        updateProduct(editingProduct.id, data);
+        await updateProduct(editingProduct.id, data);
         toast.success('Produit modifie');
         setEditingProduct(null);
     };
 
-    const handleStockAdjust = (data: StockAdjustmentFormData) => {
+    const handleStockAdjust = async (data: StockAdjustmentFormData) => {
         if (!adjustingProduct) return;
-        adjustProductStock(adjustingProduct.id, data.delta, data.reason, data.note);
+        await adjustProductStock(adjustingProduct.id, data.delta, data.reason, data.note);
         toast.success('Stock ajuste');
         setAdjustingProduct(null);
     };
 
-    const handleCounterSale = (product: Product) => {
-        adjustProductStock(product.id, -1, 'counter_sale', 'Vente comptoir');
+    const handleCounterSale = async (product: Product) => {
+        await adjustProductStock(product.id, -1, 'counter_sale', 'Vente comptoir');
         toast.success(`Vente de ${product.name} enregistree`);
     };
 

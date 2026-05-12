@@ -260,13 +260,13 @@ export function ClinicDashboard() {
     const lowStockProducts = useMemo(() => products.filter((p) => p.stock <= p.minStock), [products]);
 
     // ─── Handlers ───
-    const handleSimpleAdvance = (appointment: Appointment) => {
-        updateAppointmentStatus(appointment.id, 'arrived');
+    const handleSimpleAdvance = async (appointment: Appointment) => {
+        await updateAppointmentStatus(appointment.id, 'arrived');
         toast.success(`${appointment.patientName} est arrivé`);
     };
 
-    const handleStartConsultation = (appointment: Appointment) => {
-        updateAppointmentStatus(appointment.id, 'in-progress');
+    const handleStartConsultation = async (appointment: Appointment) => {
+        await updateAppointmentStatus(appointment.id, 'in-progress');
         setConsultingAppointment(appointment);
     };
 
@@ -274,7 +274,7 @@ export function ClinicDashboard() {
         setConsultingAppointment(appointment);
     };
 
-    const createAutoInvoiceFromAppointment = (appointment: Appointment, lines?: InvoiceFormData['lines']) => {
+    const createAutoInvoiceFromAppointment = async (appointment: Appointment, lines?: InvoiceFormData['lines']) => {
         const patient = patients.find((p) => p.id === appointment.patientId);
         if (!patient) return null;
         return addInvoice({
@@ -289,13 +289,13 @@ export function ClinicDashboard() {
         });
     };
 
-    const handleCompleteConsultation = (
+    const handleCompleteConsultation = async (
         record: MedicalRecordFormData,
         prescribedProducts: { productId: string; productName: string; quantity: number; posology: string }[],
         billingLines: InvoiceFormData['lines']
     ) => {
         if (!consultingAppointment) return;
-        const createdRecord = addMedicalRecord(consultingAppointment.patientId, {
+        const createdRecord = await addMedicalRecord(consultingAppointment.patientId, {
             date: record.date, type: record.type, diagnosis: record.diagnosis,
             treatment: record.treatment, notes: record.notes || '', veterinarian: record.veterinarian,
             prescriptions: (record.prescriptions || []).map((p) => ({
@@ -327,8 +327,8 @@ export function ClinicDashboard() {
             });
         }
 
-        updateAppointmentStatus(consultingAppointment.id, 'completed');
-        const invoice = createAutoInvoiceFromAppointment(consultingAppointment, billingLines);
+        await updateAppointmentStatus(consultingAppointment.id, 'completed');
+        const invoice = await createAutoInvoiceFromAppointment(consultingAppointment, billingLines);
         toast.success(`Consultation terminee pour ${consultingAppointment.patientName}`);
         if (prescribedProducts.length > 0) {
             toast.success('Ordonnance generee et envoyee a l\'accueil');
@@ -352,9 +352,9 @@ export function ClinicDashboard() {
         setShowInvoiceForm(true);
     };
 
-    const handleNewInvoice = (data: InvoiceFormData) => {
+    const handleNewInvoice = async (data: InvoiceFormData) => {
         const patient = patients.find((p) => p.id === data.patientId);
-        const invoice = addInvoice({
+        const invoice = await addInvoice({
             patientId: data.patientId,
             patientName: patient?.name ?? '',
             ownerName: patient ? `${patient.owner.firstName} ${patient.owner.lastName}` : '',
@@ -363,12 +363,12 @@ export function ClinicDashboard() {
             dueDate: data.dueDate, lines: data.lines,
         });
         if (showCounterSale) {
-            data.lines.forEach((line) => {
+            for (const line of data.lines) {
                 const product = products.find((p) =>
                     p.id === line.productId || (line.lineType === 'product' && p.name === line.description)
                 );
-                if (product) adjustProductStock(product.id, -line.quantity, 'counter_sale', `Vente comptoir - Facture ${invoice.invoiceNumber}`);
-            });
+                if (product) await adjustProductStock(product.id, -line.quantity, 'counter_sale', `Vente comptoir - Facture ${invoice.invoiceNumber}`);
+            }
         }
         toast.success(showCounterSale ? 'Vente comptoir enregistree' : 'Facture creee');
         setShowInvoiceForm(false);
@@ -434,8 +434,8 @@ export function ClinicDashboard() {
                 actionLabel = 'Generer facture';
                 actionIcon = <Receipt className="w-4 h-4" />;
                 actionColor = 'bg-emerald-600 hover:bg-emerald-700 text-white';
-                onAction = () => {
-                    const invoice = createAutoInvoiceFromAppointment(apt);
+                onAction = async () => {
+                    const invoice = await createAutoInvoiceFromAppointment(apt);
                     if (invoice) {
                         toast.success(`Facture ${invoice.invoiceNumber} generee`);
                         navigate(`/billing?pay=${invoice.id}`);
@@ -840,9 +840,9 @@ export function ClinicDashboard() {
                                                                             </p>
                                                                         </div>
                                                                     </div>
-                                                                    <button onClick={() => {
+                                                                    <button onClick={async () => {
                                                                         if (!invoice) {
-                                                                            const created = createAutoInvoiceFromAppointment(apt);
+                                                                            const created = await createAutoInvoiceFromAppointment(apt);
                                                                             if (created) {
                                                                                 toast.success(`Facture ${created.invoiceNumber} generee`);
                                                                                 navigate(`/billing?pay=${created.id}`);

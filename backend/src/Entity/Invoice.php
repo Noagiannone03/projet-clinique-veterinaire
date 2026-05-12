@@ -25,6 +25,10 @@ class Invoice
     #[ORM\JoinColumn(name: 'consultation_id', referencedColumnName: 'id', onDelete: 'SET NULL')]
     private ?Consultation $consultation = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'animal_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?Animal $animal = null;
+
     #[ORM\Column(name: 'montant_total', type: Types::DECIMAL, precision: 10, scale: 2)]
     private ?string $totalAmount = null;
 
@@ -46,7 +50,7 @@ class Invoice
     /**
      * @var Collection<int, InvoiceLine>
      */
-    #[ORM\OneToMany(targetEntity: InvoiceLine::class, mappedBy: 'invoice', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: InvoiceLine::class, mappedBy: 'invoice', cascade: ['persist'], orphanRemoval: true)]
     private Collection $lines;
 
     public function __construct()
@@ -79,6 +83,17 @@ class Invoice
     public function setConsultation(?Consultation $consultation): static
     {
         $this->consultation = $consultation;
+        return $this;
+    }
+
+    public function getAnimal(): ?Animal
+    {
+        return $this->animal;
+    }
+
+    public function setAnimal(?Animal $animal): static
+    {
+        $this->animal = $animal;
         return $this;
     }
 
@@ -129,6 +144,12 @@ class Invoice
     public function getDate(): ?\DateTimeInterface
     {
         return $this->date;
+    }
+
+    public function setDate(\DateTimeInterface $date): static
+    {
+        $this->date = $date;
+        return $this;
     }
 
     public function getNotes(): ?string

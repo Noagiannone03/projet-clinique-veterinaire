@@ -184,8 +184,8 @@ export function Patients() {
     const countVaccines = patients.filter((patient) => hasUpcomingVaccination(patient, 60)).length;
     const countNoUpcoming = patients.length - Array.from(upcomingByPatient.values()).filter(Boolean).length;
 
-    const handleCreatePatient = (data: PatientFormData) => {
-        addPatient({
+    const handleCreatePatient = async (data: PatientFormData) => {
+        await addPatient({
             name: data.name,
             species: data.species,
             breed: data.breed,
@@ -203,14 +203,14 @@ export function Patients() {
         setShowQuickAppointment(true);
     };
 
-    const handleQuickAppointment = (data: AppointmentFormData) => {
+    const handleQuickAppointment = async (data: AppointmentFormData) => {
         const patient = patients.find((entry) => entry.id === data.patientId);
         if (!patient) {
             toast.error('Patient introuvable');
             return;
         }
 
-        const result = addAppointment({
+        const result = await addAppointment({
             ...data,
             patientId: patient.id,
             patientName: patient.name,

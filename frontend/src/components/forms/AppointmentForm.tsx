@@ -36,7 +36,7 @@ const durationOptions = [
 interface AppointmentFormProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: AppointmentFormData, force?: boolean) => void | { ok: boolean; message?: string; conflict?: Appointment };
+    onSubmit: (data: AppointmentFormData, force?: boolean) => void | Promise<void | { ok: boolean; message?: string; conflict?: Appointment }> | { ok: boolean; message?: string; conflict?: Appointment };
     appointment?: Appointment;
     defaultPatientId?: string;
     defaultDate?: string;

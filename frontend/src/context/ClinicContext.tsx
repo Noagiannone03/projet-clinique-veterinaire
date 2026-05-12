@@ -16,7 +16,7 @@ import type {
 } from '../types';
 // Removed initial data imports
 import { ClinicStateContext, type NewAppointmentInput } from './clinicState';
-import { storage } from '../services/storage';
+import { apiService } from '../services/api';
 
 function getInvoicePaidAmount(invoice: Pick<Invoice, 'total' | 'status' | 'payments' | 'paymentPlan'>): number {
     const paidByPayments = invoice.payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0;
@@ -108,10 +108,6 @@ function toSafeQuantity(quantity: number): number {
     return Math.max(1, Math.round(quantity));
 }
 
-// Removed buildInitialPrescriptionOrders
-
-import { apiService } from '../services/api';
-
 export function ClinicProvider({ children }: { children: ReactNode }) {
     const [patients, setPatients] = useState<Patient[]>([]);
     const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -136,13 +132,33 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 setInvoices(invs.map(normalizeInvoice));
                 setProducts(prods);
                 
-                // Derive prescription orders from medical history
                 const orders: PrescriptionOrder[] = [];
                 pts.forEach((p: Patient) => {
                     p.medicalHistory?.forEach((m: MedicalRecord) => {
-                        if (m.prescriptions && m.prescriptions.length > 0) {
-                            // Mapping logic could go here
-                        }
+                        if (!m.prescriptions || m.prescriptions.length === 0) return;
+                        orders.push({
+                            id: `rx-${m.id}`,
+                            prescriptionNumber: `ORD-${m.date.slice(0, 4)}-${String(orders.length + 1).padStart(4, '0')}`,
+                            patientId: p.id,
+                            patientName: p.name,
+                            ownerName: `${p.owner.firstName} ${p.owner.lastName}`,
+                            veterinarian: m.veterinarian,
+                            issueDate: m.date,
+                            diagnosis: m.diagnosis,
+                            notes: m.notes,
+                            status: 'pending',
+                            sourceMedicalRecordId: m.id,
+                            printedCount: 0,
+                            lines: m.prescriptions.map((prescription) => ({
+                                id: prescription.id,
+                                medication: prescription.medication,
+                                dosage: prescription.dosage,
+                                frequency: prescription.frequency,
+                                duration: prescription.duration,
+                                instructions: prescription.instructions,
+                                quantity: 1,
+                            })),
+                        });
                     });
                 });
                 setPrescriptionOrders(orders);
@@ -154,15 +170,6 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         };
         fetchData();
     }, []);
-
-    // Persist to localStorage
-    useEffect(() => { storage.set('patients', patients); }, [patients]);
-    useEffect(() => { storage.set('appointments', appointments); }, [appointments]);
-    useEffect(() => { storage.set('invoices', invoices); }, [invoices]);
-    useEffect(() => { storage.set('products', products); }, [products]);
-    useEffect(() => { storage.set('stockMovements', stockMovements); }, [stockMovements]);
-    useEffect(() => { storage.set('activityLog', activityLog); }, [activityLog]);
-    useEffect(() => { storage.set('prescriptionOrders', prescriptionOrders); }, [prescriptionOrders]);
 
     const logActivity = useCallback((action: string, entity: string, entityId: string) => {
         const entry: ActivityLogEntry = {
@@ -177,30 +184,26 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     }, []);
 
     // ---- PATIENTS ----
-    const addPatient = useCallback((data: Omit<Patient, 'id' | 'alerts' | 'vaccinations' | 'medicalHistory'>): Patient => {
-        const newPatient: Patient = {
-            ...data,
-            id: generateId('pat'),
-            alerts: [],
-            vaccinations: [],
-            medicalHistory: [],
-        };
+    const addPatient = useCallback(async (data: Omit<Patient, 'id' | 'alerts' | 'vaccinations' | 'medicalHistory'>): Promise<Patient> => {
+        const newPatient = await apiService.createPatient(data);
         setPatients((prev) => [...prev, newPatient]);
         logActivity('create', 'patient', newPatient.id);
         return newPatient;
     }, [logActivity]);
 
-    const updatePatient = useCallback((id: string, data: Partial<Patient>) => {
-        setPatients((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
+    const updatePatient = useCallback(async (id: string, data: Partial<Patient>) => {
+        const updated = await apiService.updatePatient(id, data);
+        setPatients((prev) => prev.map((p) => (p.id === id ? updated : p)));
         logActivity('update', 'patient', id);
     }, [logActivity]);
 
-    const deletePatient = useCallback((id: string) => {
+    const deletePatient = useCallback(async (id: string) => {
+        await apiService.deletePatient(id);
         setPatients((prev) => prev.filter((p) => p.id !== id));
         logActivity('delete', 'patient', id);
     }, [logActivity]);
 
-    const addMedicalRecord = useCallback((patientId: string, record: Omit<MedicalRecord, 'id'>) => {
+    const addMedicalRecord = useCallback(async (patientId: string, record: Omit<MedicalRecord, 'id'>): Promise<MedicalRecord> => {
         const newRecord: MedicalRecord = {
             ...record,
             id: generateId('med'),
@@ -209,23 +212,16 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
                 id: prescription.id || generateId('presc'),
             })),
         };
-        setPatients((prev) =>
-            prev.map((p) =>
-                p.id === patientId ? { ...p, medicalHistory: [newRecord, ...p.medicalHistory] } : p
-            )
-        );
+        const updatedPatient = await apiService.createMedicalRecord(patientId, record);
+        setPatients((prev) => prev.map((p) => (p.id === patientId ? updatedPatient : p)));
         logActivity('create', 'medicalRecord', newRecord.id);
-        return newRecord;
+        return updatedPatient.medicalHistory[0] ?? newRecord;
     }, [logActivity]);
 
-    const addVaccination = useCallback((patientId: string, vaccination: Omit<Vaccination, 'id'>) => {
-        const newVac: Vaccination = { ...vaccination, id: generateId('vac') };
-        setPatients((prev) =>
-            prev.map((p) =>
-                p.id === patientId ? { ...p, vaccinations: [...p.vaccinations, newVac] } : p
-            )
-        );
-        logActivity('create', 'vaccination', newVac.id);
+    const addVaccination = useCallback(async (patientId: string, vaccination: Omit<Vaccination, 'id'>) => {
+        const updatedPatient = await apiService.createVaccination(patientId, vaccination);
+        setPatients((prev) => prev.map((p) => (p.id === patientId ? updatedPatient : p)));
+        logActivity('create', 'vaccination', patientId);
     }, [logActivity]);
 
     const addAlert = useCallback((patientId: string, alert: Omit<Alert, 'id'>) => {
@@ -247,7 +243,7 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
     }, []);
 
     // ---- APPOINTMENTS ----
-    const addAppointment = useCallback((input: NewAppointmentInput, force = false) => {
+    const addAppointment = useCallback(async (input: NewAppointmentInput, force = false) => {
         if (!force) {
             const conflict = getConflict(appointments, {
                 date: input.date,
@@ -261,27 +257,13 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        const created: Appointment = {
-            id: generateId('apt'),
-            patientId: input.patientId || generateId('new'),
-            patientName: input.patientName,
-            ownerName: input.ownerName,
-            species: input.species,
-            date: input.date,
-            time: input.time,
-            duration: input.duration,
-            type: input.type,
-            status: 'scheduled',
-            veterinarian: input.veterinarian,
-            notes: input.notes,
-        };
-
+        const created = await apiService.createAppointment(input);
         setAppointments((prev) => [...prev, created]);
         logActivity('create', 'appointment', created.id);
         return { ok: true as const };
     }, [appointments, logActivity]);
 
-    const updateAppointment = useCallback((id: string, data: Partial<Appointment>, force = false) => {
+    const updateAppointment = useCallback(async (id: string, data: Partial<Appointment>, force = false) => {
         const current = appointments.find((a) => a.id === id);
         if (!current) return { ok: false as const, message: 'Rendez-vous introuvable.' };
 
@@ -299,24 +281,25 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             }
         }
 
-        setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)));
+        const updated = await apiService.updateAppointment(id, data);
+        setAppointments((prev) => prev.map((a) => (a.id === id ? updated : a)));
         logActivity('update', 'appointment', id);
         return { ok: true as const };
     }, [appointments, logActivity]);
 
-    const deleteAppointment = useCallback((id: string) => {
+    const deleteAppointment = useCallback(async (id: string) => {
+        await apiService.deleteAppointment(id);
         setAppointments((prev) => prev.filter((a) => a.id !== id));
         logActivity('delete', 'appointment', id);
     }, [logActivity]);
 
-    const updateAppointmentStatus = useCallback((appointmentId: string, status: Appointment['status']) => {
-        setAppointments((prev) =>
-            prev.map((a) => (a.id === appointmentId ? { ...a, status } : a))
-        );
+    const updateAppointmentStatus = useCallback(async (appointmentId: string, status: Appointment['status']) => {
+        const updated = await apiService.updateAppointment(appointmentId, { status });
+        setAppointments((prev) => prev.map((a) => (a.id === appointmentId ? updated : a)));
     }, []);
 
     const updateAppointmentSchedule = useCallback(
-        (appointmentId: string, patch: { date: string; time: string; duration?: number }) => {
+        async (appointmentId: string, patch: { date: string; time: string; duration?: number }) => {
             const current = appointments.find((a) => a.id === appointmentId);
             if (!current) return { ok: false as const, message: 'Rendez-vous introuvable.' };
 
@@ -331,49 +314,44 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
 
             if (conflict) return { ok: false as const, message: 'Conflit détecté avec un autre rendez-vous.', conflict };
 
-            setAppointments((prev) =>
-                prev.map((a) =>
-                    a.id === appointmentId ? { ...a, date: patch.date, time: patch.time, duration } : a
-                )
-            );
+            const updated = await apiService.updateAppointment(appointmentId, { date: patch.date, time: patch.time, duration });
+            setAppointments((prev) => prev.map((a) => (a.id === appointmentId ? updated : a)));
             return { ok: true as const };
         },
         [appointments]
     );
 
-    const cancelAppointment = useCallback((id: string, reason: string) => {
-        setAppointments((prev) =>
-            prev.map((a) =>
-                a.id === id ? { ...a, status: 'cancelled' as const, cancellationReason: reason } : a
-            )
-        );
+    const cancelAppointment = useCallback(async (id: string, reason: string) => {
+        const updated = await apiService.updateAppointment(id, { status: 'cancelled', cancellationReason: reason });
+        setAppointments((prev) => prev.map((a) => (a.id === id ? { ...updated, cancellationReason: reason } : a)));
         logActivity('cancel', 'appointment', id);
     }, [logActivity]);
 
     // ---- PRODUCTS ----
-    const addProduct = useCallback((data: Omit<Product, 'id'>): Product => {
-        const newProduct: Product = { ...data, id: generateId('prod') };
+    const addProduct = useCallback(async (data: Omit<Product, 'id'>): Promise<Product> => {
+        const newProduct = await apiService.createProduct(data);
         setProducts((prev) => [...prev, newProduct]);
         logActivity('create', 'product', newProduct.id);
         return newProduct;
     }, [logActivity]);
 
-    const updateProduct = useCallback((id: string, data: Partial<Product>) => {
-        setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...data } : p)));
+    const updateProduct = useCallback(async (id: string, data: Partial<Product>) => {
+        const updated = await apiService.updateProduct(id, data);
+        setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)));
         logActivity('update', 'product', id);
     }, [logActivity]);
 
-    const deleteProduct = useCallback((id: string) => {
+    const deleteProduct = useCallback(async (id: string) => {
+        await apiService.deleteProduct(id);
         setProducts((prev) => prev.filter((p) => p.id !== id));
         logActivity('delete', 'product', id);
     }, [logActivity]);
 
-    const adjustProductStock = useCallback((productId: string, delta: number, reason: StockMovement['reason'] = 'reception', note?: string) => {
-        setProducts((prev) =>
-            prev.map((p) =>
-                p.id === productId ? { ...p, stock: Math.max(p.stock + delta, 0) } : p
-            )
-        );
+    const adjustProductStock = useCallback(async (productId: string, delta: number, reason: StockMovement['reason'] = 'reception', note?: string) => {
+        const current = products.find((p) => p.id === productId);
+        if (!current) return;
+        const updated = await apiService.updateProduct(productId, { stock: Math.max(current.stock + delta, 0) });
+        setProducts((prev) => prev.map((p) => (p.id === productId ? updated : p)));
         const movement: StockMovement = {
             id: generateId('sm'),
             productId,
@@ -383,149 +361,52 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             note,
         };
         setStockMovements((prev) => [movement, ...prev]);
-    }, []);
+    }, [products]);
 
     // ---- INVOICES ----
-    const addInvoice = useCallback((
+    const addInvoice = useCallback(async (
         data: Omit<Invoice, 'id' | 'invoiceNumber' | 'payments' | 'status' | 'subtotal' | 'tax' | 'total' | 'lines'> & {
             lines: InvoiceLineInput[];
         }
-    ): Invoice => {
+    ): Promise<Invoice> => {
         if (data.sourceAppointmentId) {
             const existing = invoices.find((invoice) => invoice.sourceAppointmentId === data.sourceAppointmentId);
             if (existing) return existing;
         }
-
-        const lines = data.lines.map((l) => ({
-            id: generateId('line'),
-            description: l.description,
-            quantity: l.quantity,
-            unitPrice: l.unitPrice,
-            total: l.quantity * l.unitPrice,
-            lineType: l.lineType ?? 'service',
-            productId: l.productId,
-        }));
-        const subtotal = lines.reduce((sum, l) => sum + l.total, 0);
-        const tax = Math.round(subtotal * 0.2 * 100) / 100;
-        const total = Math.round((subtotal + tax) * 100) / 100;
-        const invoiceNumber = `FAC-${new Date().getFullYear()}-${String(invoices.length + 1).padStart(4, '0')}`;
-
-        const newInvoice: Invoice = {
-            ...data,
-            id: generateId('inv'),
-            invoiceNumber,
-            lines,
-            subtotal,
-            tax,
-            total,
-            source: data.source ?? 'manual',
-            status: 'pending',
-            payments: [],
-        };
-        const normalizedInvoice = normalizeInvoice(newInvoice);
+        const normalizedInvoice = normalizeInvoice(await apiService.createInvoice(data));
 
         setInvoices((prev) => [...prev, normalizedInvoice]);
         logActivity('create', 'invoice', normalizedInvoice.id);
         return normalizedInvoice;
     }, [invoices, logActivity]);
 
-    const updateInvoice = useCallback((id: string, data: Partial<Invoice>) => {
-        setInvoices((prev) =>
-            prev.map((invoice) => (
-                invoice.id === id ? normalizeInvoice({ ...invoice, ...data }) : invoice
-            ))
-        );
+    const updateInvoice = useCallback(async (id: string, data: Partial<Invoice>) => {
+        const updated = normalizeInvoice(await apiService.updateInvoice(id, data));
+        setInvoices((prev) => prev.map((invoice) => (invoice.id === id ? updated : invoice)));
         logActivity('update', 'invoice', id);
     }, [logActivity]);
 
-    const updateInvoiceData = useCallback((id: string, newLines: InvoiceLineInput[]) => {
-        setInvoices((prev) =>
-            prev.map((invoice) => {
-                if (invoice.id !== id) return invoice;
-
-                const lines = newLines.map((l) => ({
-                    id: generateId('line'),
-                    description: l.description,
-                    quantity: l.quantity,
-                    unitPrice: l.unitPrice,
-                    total: l.quantity * l.unitPrice,
-                    lineType: l.lineType ?? 'service',
-                    productId: l.productId,
-                }));
-                const subtotal = lines.reduce((sum, l) => sum + l.total, 0);
-                const tax = Math.round(subtotal * 0.2 * 100) / 100;
-                const total = Math.round((subtotal + tax) * 100) / 100;
-
-                return normalizeInvoice({
-                    ...invoice,
-                    lines,
-                    subtotal,
-                    tax,
-                    total,
-                });
-            })
-        );
+    const updateInvoiceData = useCallback(async (id: string, newLines: InvoiceLineInput[]) => {
+        const updated = normalizeInvoice(await apiService.updateInvoice(id, { lines: newLines }));
+        setInvoices((prev) => prev.map((invoice) => (invoice.id === id ? updated : invoice)));
         logActivity('update', 'invoice', id);
     }, [logActivity]);
 
-    const recordPayment = useCallback((invoiceId: string, paymentData: Omit<Payment, 'id' | 'invoiceId'>) => {
-        setInvoices((prev) =>
-            prev.map((inv) => {
-                if (inv.id !== invoiceId) return inv;
-
-                const alreadyPaid = getInvoicePaidAmount(inv);
-                const remaining = Math.max(inv.total - alreadyPaid, 0);
-                const amountToApply = Math.min(Math.max(paymentData.amount, 0), remaining);
-                if (amountToApply <= 0) return inv;
-
-                const payment: Payment = {
-                    id: generateId('pay'),
-                    invoiceId,
-                    ...paymentData,
-                    amount: amountToApply,
-                };
-
-                const payments = [...inv.payments, payment];
-                const totalPaid = getInvoicePaidAmount({ ...inv, payments });
-
-                let paymentPlan = inv.paymentPlan;
-                if (paymentPlan) {
-                    const paidInstallments = Math.min(Math.floor(totalPaid / paymentPlan.installmentAmount), paymentPlan.totalInstallments);
-                    paymentPlan = { ...paymentPlan, paidInstallments };
-                }
-
-                const status = computeInvoiceStatus(inv, totalPaid);
-                return { ...inv, payments, status, paymentPlan };
-            })
-        );
+    const recordPayment = useCallback(async (invoiceId: string, paymentData: Omit<Payment, 'id' | 'invoiceId'>) => {
+        const updated = normalizeInvoice(await apiService.recordPayment(invoiceId, paymentData));
+        setInvoices((prev) => prev.map((inv) => (inv.id === invoiceId ? updated : inv)));
         logActivity('payment', 'invoice', invoiceId);
     }, [logActivity]);
 
-    const recordInvoicePayment = useCallback((invoiceId: string) => {
-        setInvoices((prev) =>
-            prev.map((invoice) => {
-                if (invoice.id !== invoiceId || invoice.status === 'paid') return invoice;
-
-                if (invoice.paymentPlan) {
-                    const paidInstallments = Math.min(
-                        invoice.paymentPlan.paidInstallments + 1,
-                        invoice.paymentPlan.totalInstallments
-                    );
-                    const totalPaid = Math.min(
-                        paidInstallments * invoice.paymentPlan.installmentAmount,
-                        invoice.total
-                    );
-                    return {
-                        ...invoice,
-                        status: computeInvoiceStatus(invoice, totalPaid),
-                        paymentPlan: { ...invoice.paymentPlan, paidInstallments },
-                    };
-                }
-
-                return { ...invoice, status: computeInvoiceStatus(invoice, invoice.total) };
-            })
-        );
-    }, []);
+    const recordInvoicePayment = useCallback(async (invoiceId: string) => {
+        const invoice = invoices.find((entry) => entry.id === invoiceId);
+        if (!invoice || invoice.status === 'paid') return;
+        await recordPayment(invoiceId, {
+            amount: Math.max(invoice.total - getInvoicePaidAmount(invoice), 0),
+            method: 'card',
+            date: new Date().toISOString().split('T')[0],
+        });
+    }, [invoices, recordPayment]);
 
     // ---- PRESCRIPTIONS ----
     const createPrescriptionOrder = useCallback((data: {
