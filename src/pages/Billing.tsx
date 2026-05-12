@@ -76,7 +76,7 @@ function resolveLineType(line: Invoice['lines'][number]): 'service' | 'product' 
 }
 
 function getInvoicePaidAmount(invoice: Invoice): number {
-    const paidByPayments = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const paidByPayments = invoice.payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0;
     const paidByPlan = invoice.paymentPlan
         ? invoice.paymentPlan.paidInstallments * invoice.paymentPlan.installmentAmount
         : 0;

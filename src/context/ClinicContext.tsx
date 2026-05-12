@@ -22,7 +22,7 @@ import { ClinicStateContext, type NewAppointmentInput } from './clinicState';
 import { storage } from '../services/storage';
 
 function getInvoicePaidAmount(invoice: Pick<Invoice, 'total' | 'status' | 'payments' | 'paymentPlan'>): number {
-    const paidByPayments = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const paidByPayments = invoice.payments?.reduce((sum, payment) => sum + payment.amount, 0) || 0;
     const paidByPlan = invoice.paymentPlan
         ? invoice.paymentPlan.paidInstallments * invoice.paymentPlan.installmentAmount
         : 0;

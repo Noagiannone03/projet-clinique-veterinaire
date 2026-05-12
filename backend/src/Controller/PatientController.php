@@ -46,6 +46,9 @@ class PatientController extends AbstractController
                     'phone' => $owner->getTelephone() ?? '',
                     'address' => $owner->getAdresse() ?? '',
                 ] : null,
+                'alerts' => [],
+                'vaccinations' => [],
+                'medicalHistory' => [],
             ];
         }, $animals));
     }

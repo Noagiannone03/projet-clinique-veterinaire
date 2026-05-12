@@ -126,7 +126,7 @@ export const getVaccinationDueSoonCount = (patients: Patient[], days = 60): numb
     target.setDate(target.getDate() + days);
 
     return patients.filter((patient) =>
-        patient.vaccinations.some((vaccination) => {
+        patient.vaccinations?.some((vaccination) => {
             const dueDate = new Date(vaccination.nextDueDate);
             return dueDate >= now && dueDate <= target;
         })

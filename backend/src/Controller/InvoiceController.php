@@ -31,15 +31,29 @@ class InvoiceController extends AbstractController
             $consultation = $i->getConsultation();
             return [
                 'id' => (string)$i->getId(),
-                'invoiceNumber' => 'FAC-' . $i->getId(), // Fallback if no number in DB
+                'invoiceNumber' => 'FAC-' . str_pad($i->getId(), 6, '0', STR_PAD_LEFT),
                 'ownerName' => $owner ? ($owner->getPrenom() . ' ' . $owner->getNom()) : 'Inconnu',
                 'patientName' => $consultation && $consultation->getAnimal() ? $consultation->getAnimal()->getNom() : 'N/A',
+                'patientId' => $consultation && $consultation->getAnimal() ? (string)$consultation->getAnimal()->getId() : '0',
                 'date' => $i->getDate() ? $i->getDate()->format('Y-m-d') : '',
                 'dueDate' => $i->getDate() ? $i->getDate()->modify('+15 days')->format('Y-m-d') : '',
                 'total' => (float)$i->getTotalAmount(),
                 'status' => $this->mapStatus($i->getStatut(), $i->getDate()),
-                'subtotal' => (float)$i->getTotalAmount() / 1.2, // Rough estimation
+                'subtotal' => (float)$i->getTotalAmount() / 1.2,
                 'tax' => (float)$i->getTotalAmount() * 0.2,
+                'source' => $consultation ? 'consultation' : 'manual',
+                'lines' => [
+                    [
+                        'id' => 'l1',
+                        'description' => 'Prestation de soin / Consultation',
+                        'quantity' => 1,
+                        'unitPrice' => (float)$i->getTotalAmount(),
+                        'total' => (float)$i->getTotalAmount(),
+                        'lineType' => 'service'
+                    ]
+                ],
+                'payments' => [],
+                'paymentPlan' => null,
             ];
         }, $invoices));
     }
