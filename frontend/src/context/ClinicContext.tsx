@@ -210,6 +210,29 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         logActivity('delete', 'patient', id);
     }, [logActivity]);
 
+    const updatePatientGdpr = useCallback(async (id: string, data: {
+        processingConsent?: boolean;
+        marketingConsent?: boolean;
+        contactOpposition?: boolean;
+        gdprNotes?: string;
+    }) => {
+        const updated = await apiService.updatePatientGdpr(id, data);
+        setPatients((prev) => prev.map((p) => (p.id === id ? updated : p)));
+        logActivity('gdpr_update', 'patient', id);
+    }, [logActivity]);
+
+    const exportPatientGdpr = useCallback(async (id: string) => {
+        const exported = await apiService.exportPatientGdpr(id);
+        logActivity('gdpr_export', 'patient', id);
+        return exported;
+    }, [logActivity]);
+
+    const anonymizePatientOwner = useCallback(async (id: string) => {
+        const updated = await apiService.anonymizePatientOwner(id);
+        setPatients((prev) => prev.map((p) => (p.id === id ? updated : p)));
+        logActivity('gdpr_anonymize_owner', 'patient', id);
+    }, [logActivity]);
+
     const addMedicalRecord = useCallback(async (patientId: string, record: Omit<MedicalRecord, 'id'>): Promise<MedicalRecord> => {
         const newRecord: MedicalRecord = {
             ...record,
@@ -581,6 +604,9 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
             addPatient,
             updatePatient,
             deletePatient,
+            updatePatientGdpr,
+            exportPatientGdpr,
+            anonymizePatientOwner,
             addMedicalRecord,
             addVaccination,
             addAlert,
@@ -608,7 +634,8 @@ export function ClinicProvider({ children }: { children: ReactNode }) {
         }),
         [
             patients, appointments, invoices, products, stockMovements, activityLog, prescriptionOrders,
-            addPatient, updatePatient, deletePatient, addMedicalRecord, addVaccination, addAlert, removeAlert,
+            addPatient, updatePatient, deletePatient, updatePatientGdpr, exportPatientGdpr, anonymizePatientOwner,
+            addMedicalRecord, addVaccination, addAlert, removeAlert,
             addAppointment, updateAppointment, deleteAppointment, updateAppointmentStatus, updateAppointmentSchedule, cancelAppointment,
             addProduct, updateProduct, deleteProduct, adjustProductStock,
             addInvoice, updateInvoice, updateInvoiceData, recordPayment, recordInvoicePayment,

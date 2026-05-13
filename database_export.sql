@@ -690,9 +690,9 @@ COPY public.rendez_vous (id, animal_id, proprietaire_id, veterinaire_id, motif, 
 --
 
 COPY public.utilisateurs (id, nom, prenom, email, mot_de_passe, role, actif, cree_le, description, icon) FROM stdin;
-2	Martin	Elodie	sophie.martin@clinique-etangs.fr	$2y$13$P/TSgzrb3NVTdhwFV.VBu.9JKXlKiBtkvw7zSkcx7oYbeAPnydUlm	veterinaire	t	2026-05-12 09:49:38.019522	Dossiers patients, consultations, ordonnances	stethoscope
-1	Lannes	Antoine	michel.lannes@clinique-etangs.fr	$2y$13$owLZU3KcMjjmxtO/OVadeuZt9gcYgzgTJIGQu5yy5tOlOvoU1ZPbe	directeur	t	2026-05-12 09:49:38.019522	Vision globale, KPIs, rentabilite, paiements	briefcase
-3	Dupont	Camille	julie.dupont@clinique-etangs.fr	$2y$13$B0GScr6nyroZ6WEOQFAbO.yxNJ1rfPr/sdhpUPrbjNXxMk5mhXjVm	accueil	t	2026-05-12 09:49:38.019522	Accueil, RDV, facturation, inventaire	headset
+2	Martin	Sophie	sophie.martin@clinique-etangs.fr	$2y$13$P/TSgzrb3NVTdhwFV.VBu.9JKXlKiBtkvw7zSkcx7oYbeAPnydUlm	veterinaire	t	2026-05-12 09:49:38.019522	Dossiers patients, consultations, ordonnances	stethoscope
+1	Lannes	Michel	michel.lannes@clinique-etangs.fr	$2y$13$owLZU3KcMjjmxtO/OVadeuZt9gcYgzgTJIGQu5yy5tOlOvoU1ZPbe	directeur	t	2026-05-12 09:49:38.019522	Vision globale, KPIs, rentabilite, paiements	briefcase
+3	Dupont	Julie	julie.dupont@clinique-etangs.fr	$2y$13$B0GScr6nyroZ6WEOQFAbO.yxNJ1rfPr/sdhpUPrbjNXxMk5mhXjVm	accueil	t	2026-05-12 09:49:38.019522	Accueil, RDV, facturation, inventaire	headset
 \.
 
 
@@ -1166,4 +1166,3 @@ ALTER TABLE ONLY public.vaccinations
 --
 
 \unrestrict HCHO81NwunALucYCrx8eZJIflivo6YvRTuD6cjwctzOdhmQ6I8eqMRJIHPrP5dK
-

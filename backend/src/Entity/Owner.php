@@ -35,6 +35,24 @@ class Owner
     #[ORM\Column(name: 'cree_le', type: Types::DATETIME_MUTABLE, options: ['default' => 'CURRENT_TIMESTAMP'])]
     private ?\DateTimeInterface $createdAt = null;
 
+    #[ORM\Column(name: 'consent_traitement', options: ['default' => true])]
+    private ?bool $processingConsent = true;
+
+    #[ORM\Column(name: 'consent_marketing', options: ['default' => false])]
+    private ?bool $marketingConsent = false;
+
+    #[ORM\Column(name: 'opposition_contact', options: ['default' => false])]
+    private ?bool $contactOpposition = false;
+
+    #[ORM\Column(name: 'rgpd_notes', type: Types::TEXT, nullable: true)]
+    private ?string $gdprNotes = null;
+
+    #[ORM\Column(name: 'consentement_le', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $consentAt = null;
+
+    #[ORM\Column(name: 'anonymise_le', type: Types::DATETIME_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $anonymizedAt = null;
+
     /**
      * @var Collection<int, Animal>
      */
@@ -44,6 +62,7 @@ class Owner
     public function __construct()
     {
         $this->createdAt = new \DateTime();
+        $this->consentAt = new \DateTime();
         $this->animals = new ArrayCollection();
     }
 
@@ -110,6 +129,72 @@ class Owner
     public function getCreatedAt(): ?\DateTimeInterface
     {
         return $this->createdAt;
+    }
+
+    public function hasProcessingConsent(): bool
+    {
+        return (bool) $this->processingConsent;
+    }
+
+    public function setProcessingConsent(bool $processingConsent): static
+    {
+        $this->processingConsent = $processingConsent;
+        return $this;
+    }
+
+    public function hasMarketingConsent(): bool
+    {
+        return (bool) $this->marketingConsent;
+    }
+
+    public function setMarketingConsent(bool $marketingConsent): static
+    {
+        $this->marketingConsent = $marketingConsent;
+        return $this;
+    }
+
+    public function hasContactOpposition(): bool
+    {
+        return (bool) $this->contactOpposition;
+    }
+
+    public function setContactOpposition(bool $contactOpposition): static
+    {
+        $this->contactOpposition = $contactOpposition;
+        return $this;
+    }
+
+    public function getGdprNotes(): ?string
+    {
+        return $this->gdprNotes;
+    }
+
+    public function setGdprNotes(?string $gdprNotes): static
+    {
+        $this->gdprNotes = $gdprNotes;
+        return $this;
+    }
+
+    public function getConsentAt(): ?\DateTimeInterface
+    {
+        return $this->consentAt;
+    }
+
+    public function setConsentAt(?\DateTimeInterface $consentAt): static
+    {
+        $this->consentAt = $consentAt;
+        return $this;
+    }
+
+    public function getAnonymizedAt(): ?\DateTimeInterface
+    {
+        return $this->anonymizedAt;
+    }
+
+    public function setAnonymizedAt(?\DateTimeInterface $anonymizedAt): static
+    {
+        $this->anonymizedAt = $anonymizedAt;
+        return $this;
     }
 
     /**

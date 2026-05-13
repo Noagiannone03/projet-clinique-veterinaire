@@ -6,3 +6,4 @@ export { Appointments } from './Appointments';
 export { Inventory } from './Inventory';
 export { Billing } from './Billing';
 export { Prescriptions } from './Prescriptions';
+export { TeamManagement } from './TeamManagement';

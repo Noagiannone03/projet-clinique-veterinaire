@@ -43,6 +43,14 @@ export interface ClinicContextValue {
     addPatient: (patient: Omit<Patient, 'id' | 'alerts' | 'vaccinations' | 'medicalHistory'>) => Promise<Patient>;
     updatePatient: (id: string, data: Partial<Patient>) => Promise<void>;
     deletePatient: (id: string) => Promise<void>;
+    updatePatientGdpr: (id: string, data: {
+        processingConsent?: boolean;
+        marketingConsent?: boolean;
+        contactOpposition?: boolean;
+        gdprNotes?: string;
+    }) => Promise<void>;
+    exportPatientGdpr: (id: string) => Promise<unknown>;
+    anonymizePatientOwner: (id: string) => Promise<void>;
     addMedicalRecord: (patientId: string, record: Omit<MedicalRecord, 'id'>) => Promise<MedicalRecord>;
     addVaccination: (patientId: string, vaccination: Omit<Vaccination, 'id'>) => Promise<void>;
     addAlert: (patientId: string, alert: Omit<Alert, 'id'>) => void;

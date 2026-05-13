@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Appointment, Invoice, InvoiceLineInput, Patient, Payment, Product, Vaccination, MedicalRecord } from '../types';
+import type { Appointment, Invoice, InvoiceLineInput, Patient, Payment, Product, Vaccination, MedicalRecord, TeamMember } from '../types';
 import type { NewAppointmentInput } from '../context/clinicState';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -21,6 +21,20 @@ export const apiService = {
     },
     logout: async () => {
         await api.post('/logout');
+    },
+
+    // Team
+    getTeamMembers: async () => {
+        const response = await api.get('/team');
+        return response.data as TeamMember[];
+    },
+    createTeamMember: async (member: Omit<TeamMember, 'id' | 'name' | 'icon' | 'createdAt'> & { password: string }) => {
+        const response = await api.post('/team', member);
+        return response.data as TeamMember;
+    },
+    updateTeamMember: async (id: string, data: Partial<Omit<TeamMember, 'id' | 'name' | 'icon' | 'createdAt'>> & { password?: string }) => {
+        const response = await api.put(`/team/${id}`, data);
+        return response.data as TeamMember;
     },
 
     // Dashboard
@@ -78,6 +92,23 @@ export const apiService = {
     },
     deletePatient: async (id: string) => {
         await api.delete(`/patients/${id}`);
+    },
+    updatePatientGdpr: async (id: string, data: {
+        processingConsent?: boolean;
+        marketingConsent?: boolean;
+        contactOpposition?: boolean;
+        gdprNotes?: string;
+    }) => {
+        const response = await api.patch(`/patients/${id}/gdpr`, data);
+        return response.data as Patient;
+    },
+    exportPatientGdpr: async (id: string) => {
+        const response = await api.get(`/patients/${id}/gdpr-export`);
+        return response.data;
+    },
+    anonymizePatientOwner: async (id: string) => {
+        const response = await api.post(`/patients/${id}/anonymize-owner`);
+        return response.data as Patient;
     },
     createMedicalRecord: async (patientId: string, record: Omit<MedicalRecord, 'id'>) => {
         const response = await api.post(`/patients/${patientId}/medical-records`, record);

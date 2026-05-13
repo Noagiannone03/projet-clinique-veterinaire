@@ -27,9 +27,9 @@
 --    sans que tu aies besoin d'ouvrir pgAdmin ou psql.
  
 INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, role) VALUES
-('Lannes',  'Antoines Lannes',  'michel.lannes@clinique-etangs.fr',   '$2y$12$vI0iCEeOnTlWxkkkvf0oe.T81RdjNHWClhbT8Wr8ZJCISs0Pw7ZHG', 'directeur'),
-('Martin',  'Elodie Martin',  'sophie.martin@clinique-etangs.fr',   '$2y$12$vI0iCEeOnTlWxkkkvf0oe.T81RdjNHWClhbT8Wr8ZJCISs0Pw7ZHG', 'veterinaire'),
-('Dupont',  'Camille Roux',   'julie.dupont@clinique-etangs.fr',    '$2y$12$vI0iCEeOnTlWxkkkvf0oe.T81RdjNHWClhbT8Wr8ZJCISs0Pw7ZHG', 'accueil');
+('Lannes',  'Michel',  'michel.lannes@clinique-etangs.fr',   '$2y$12$vI0iCEeOnTlWxkkkvf0oe.T81RdjNHWClhbT8Wr8ZJCISs0Pw7ZHG', 'directeur'),
+('Martin',  'Sophie',  'sophie.martin@clinique-etangs.fr',   '$2y$12$vI0iCEeOnTlWxkkkvf0oe.T81RdjNHWClhbT8Wr8ZJCISs0Pw7ZHG', 'veterinaire'),
+('Dupont',  'Julie',   'julie.dupont@clinique-etangs.fr',    '$2y$12$vI0iCEeOnTlWxkkkvf0oe.T81RdjNHWClhbT8Wr8ZJCISs0Pw7ZHG', 'accueil');
  
 -- ⚠️  Pendant le développement uniquement, tu peux utiliser :
 -- mot_de_passe = '1234'  ou  mot_de_passe = 'test'

@@ -39,6 +39,12 @@ class SecurityController extends AbstractController
             ], Response::HTTP_UNAUTHORIZED);
         }
 
+        if (!$user->isActif()) {
+            return $this->json([
+                'message' => 'account disabled',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
         return $this->json([
             'user' => [
                 'id' => (string)$user->getId(),

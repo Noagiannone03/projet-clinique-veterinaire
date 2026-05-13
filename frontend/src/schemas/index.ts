@@ -6,6 +6,10 @@ export const ownerSchema = z.object({
     email: z.string().email('Email invalide'),
     phone: z.string().min(10, 'Numero de telephone invalide'),
     address: z.string().min(5, 'Adresse requise'),
+    processingConsent: z.boolean().default(true),
+    marketingConsent: z.boolean().default(false),
+    contactOpposition: z.boolean().default(false),
+    gdprNotes: z.string().optional(),
 });
 
 export const patientSchema = z.object({

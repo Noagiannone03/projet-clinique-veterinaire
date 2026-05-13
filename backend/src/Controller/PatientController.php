@@ -96,6 +96,12 @@ class PatientController extends AbstractController
                 'email' => $owner->getEmail() ?? '',
                 'phone' => $owner->getTelephone() ?? '',
                 'address' => $owner->getAdresse() ?? '',
+                'processingConsent' => $owner->hasProcessingConsent(),
+                'marketingConsent' => $owner->hasMarketingConsent(),
+                'contactOpposition' => $owner->hasContactOpposition(),
+                'gdprNotes' => $owner->getGdprNotes() ?? '',
+                'consentAt' => $owner->getConsentAt()?->format(\DateTimeInterface::ATOM),
+                'anonymizedAt' => $owner->getAnonymizedAt()?->format(\DateTimeInterface::ATOM),
             ] : null,
             'alerts' => $a->getAlerteRisque() ? [[
                 'id' => 'risk',
@@ -186,7 +192,12 @@ class PatientController extends AbstractController
             ->setNom(trim($ownerData['lastName'] ?? ''))
             ->setEmail($ownerData['email'] ?? null)
             ->setTelephone($ownerData['phone'] ?? null)
-            ->setAdresse($ownerData['address'] ?? null);
+            ->setAdresse($ownerData['address'] ?? null)
+            ->setProcessingConsent((bool)($ownerData['processingConsent'] ?? true))
+            ->setMarketingConsent((bool)($ownerData['marketingConsent'] ?? false))
+            ->setContactOpposition((bool)($ownerData['contactOpposition'] ?? false))
+            ->setGdprNotes($ownerData['gdprNotes'] ?? null)
+            ->setConsentAt(new \DateTime());
 
         $animal = (new Animal())
             ->setOwner($owner)
@@ -229,7 +240,82 @@ class PatientController extends AbstractController
             if (array_key_exists('email', $data['owner'])) $owner->setEmail($data['owner']['email']);
             if (array_key_exists('phone', $data['owner'])) $owner->setTelephone($data['owner']['phone']);
             if (array_key_exists('address', $data['owner'])) $owner->setAdresse($data['owner']['address']);
+            if (array_key_exists('processingConsent', $data['owner'])) $owner->setProcessingConsent((bool)$data['owner']['processingConsent'])->setConsentAt(new \DateTime());
+            if (array_key_exists('marketingConsent', $data['owner'])) $owner->setMarketingConsent((bool)$data['owner']['marketingConsent']);
+            if (array_key_exists('contactOpposition', $data['owner'])) $owner->setContactOpposition((bool)$data['owner']['contactOpposition']);
+            if (array_key_exists('gdprNotes', $data['owner'])) $owner->setGdprNotes($data['owner']['gdprNotes'] ?: null);
         }
+
+        $em->flush();
+
+        return $this->json($this->serializeAnimal($animal, $consultationRepo, $vaccinationRepo, $prescriptionRepo));
+    }
+
+    #[Route('/{id}/gdpr', name: 'gdpr_update', methods: ['PATCH'])]
+    public function updateGdpr(int $id, Request $request, AnimalRepository $animalRepo, EntityManagerInterface $em, ConsultationRepository $consultationRepo, VaccinationRepository $vaccinationRepo, PrescriptionRepository $prescriptionRepo): JsonResponse
+    {
+        $animal = $animalRepo->find($id);
+        if (!$animal || !$animal->getOwner()) {
+            return $this->json(['message' => 'Patient not found'], 404);
+        }
+
+        $data = $request->toArray();
+        $owner = $animal->getOwner();
+
+        if (array_key_exists('processingConsent', $data)) {
+            $owner->setProcessingConsent((bool)$data['processingConsent'])->setConsentAt(new \DateTime());
+        }
+        if (array_key_exists('marketingConsent', $data)) {
+            $owner->setMarketingConsent((bool)$data['marketingConsent']);
+        }
+        if (array_key_exists('contactOpposition', $data)) {
+            $owner->setContactOpposition((bool)$data['contactOpposition']);
+        }
+        if (array_key_exists('gdprNotes', $data)) {
+            $owner->setGdprNotes(trim((string)$data['gdprNotes']) ?: null);
+        }
+
+        $em->flush();
+
+        return $this->json($this->serializeAnimal($animal, $consultationRepo, $vaccinationRepo, $prescriptionRepo));
+    }
+
+    #[Route('/{id}/gdpr-export', name: 'gdpr_export', methods: ['GET'])]
+    public function exportGdpr(int $id, AnimalRepository $animalRepo, ConsultationRepository $consultationRepo, VaccinationRepository $vaccinationRepo, PrescriptionRepository $prescriptionRepo): JsonResponse
+    {
+        $animal = $animalRepo->find($id);
+        if (!$animal) {
+            return $this->json(['message' => 'Patient not found'], 404);
+        }
+
+        return $this->json([
+            'exportedAt' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            'format' => 'json',
+            'scope' => 'owner_and_patient_record',
+            'retentionNotice' => 'Certaines donnees liees aux obligations comptables ou au suivi medical peuvent etre conservees selon les durees applicables.',
+            'data' => $this->serializeAnimal($animal, $consultationRepo, $vaccinationRepo, $prescriptionRepo),
+        ]);
+    }
+
+    #[Route('/{id}/anonymize-owner', name: 'owner_anonymize', methods: ['POST'])]
+    public function anonymizeOwner(int $id, AnimalRepository $animalRepo, EntityManagerInterface $em, ConsultationRepository $consultationRepo, VaccinationRepository $vaccinationRepo, PrescriptionRepository $prescriptionRepo): JsonResponse
+    {
+        $animal = $animalRepo->find($id);
+        if (!$animal || !$animal->getOwner()) {
+            return $this->json(['message' => 'Patient not found'], 404);
+        }
+
+        $owner = $animal->getOwner();
+        $owner
+            ->setPrenom('Client')
+            ->setNom('Anonymise '.$owner->getId())
+            ->setEmail(null)
+            ->setTelephone(null)
+            ->setAdresse(null)
+            ->setMarketingConsent(false)
+            ->setContactOpposition(true)
+            ->setGdprNotes('Coordonnees anonymisees a la demande du client.')
+            ->setAnonymizedAt(new \DateTime());
 
         $em->flush();
 

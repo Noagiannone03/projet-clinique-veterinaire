@@ -10,6 +10,13 @@ export interface User {
     icon: string;
 }
 
+export interface TeamMember extends User {
+    firstName: string;
+    lastName: string;
+    active: boolean;
+    createdAt?: string;
+}
+
 // Patient Types
 export interface Owner {
     id: string;
@@ -18,6 +25,12 @@ export interface Owner {
     email: string;
     phone: string;
     address: string;
+    processingConsent?: boolean;
+    marketingConsent?: boolean;
+    contactOpposition?: boolean;
+    gdprNotes?: string;
+    consentAt?: string;
+    anonymizedAt?: string;
 }
 
 export interface Patient {

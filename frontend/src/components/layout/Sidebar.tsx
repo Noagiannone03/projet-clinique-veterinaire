@@ -9,6 +9,7 @@ import {
     Settings,
     LogOut,
     BarChart3,
+    Users,
     ChevronLeft,
     ChevronRight,
     X,
@@ -35,6 +36,7 @@ const navItems: NavItem[] = [
     { to: '/inventory', icon: Package, label: 'Inventaire', roles: ['veterinarian', 'assistant'] },
     { to: '/billing', icon: Receipt, label: 'Facturation', roles: ['director', 'assistant'] },
     { to: '/prescriptions', icon: Pill, label: 'Ordonnances', roles: ['director', 'veterinarian', 'assistant'] },
+    { to: '/team', icon: Users, label: 'Equipe', roles: ['director'] },
 ];
 
 export function Sidebar() {

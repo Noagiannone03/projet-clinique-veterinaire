@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import {
     ArrowLeft, Dog, Cat, Bird, Rabbit, AlertTriangle, Syringe, FileText, Calendar,
     User, Phone, Mail, MapPin, Weight, Palette, Cpu, Clock, Plus, Edit, Trash2, Printer, Receipt, Pill,
+    ShieldCheck, Download, UserX,
 } from 'lucide-react';
 import { format, differenceInYears, differenceInMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -37,6 +38,9 @@ export function PatientDetail() {
         patients,
         updatePatient,
         deletePatient,
+        updatePatientGdpr,
+        exportPatientGdpr,
+        anonymizePatientOwner,
         addMedicalRecord,
         addVaccination,
         appointments,
@@ -55,6 +59,7 @@ export function PatientDetail() {
     const [showNewVaccination, setShowNewVaccination] = useState(false);
     const [showNewAppointment, setShowNewAppointment] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showAnonymizeConfirm, setShowAnonymizeConfirm] = useState(false);
 
     if (!patient) {
         return (
@@ -168,6 +173,29 @@ export function PatientDetail() {
         navigate('/patients');
     };
 
+    const handleExportGdpr = async () => {
+        const exported = await exportPatientGdpr(patient.id);
+        const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `rgpd-${patient.owner.lastName}-${patient.owner.firstName}-${patient.id}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        toast.success('Export RGPD genere');
+    };
+
+    const handleUpdateGdprFlag = async (key: 'processingConsent' | 'marketingConsent' | 'contactOpposition', value: boolean) => {
+        await updatePatientGdpr(patient.id, { [key]: value });
+        toast.success('Preference RGPD mise a jour');
+    };
+
+    const handleAnonymizeOwner = async () => {
+        await anonymizePatientOwner(patient.id);
+        toast.success('Coordonnees proprietaire anonymisees');
+        setShowAnonymizeConfirm(false);
+    };
+
     const tabs = [
         { key: 'info', label: 'Informations', icon: <User className="w-4 h-4" /> },
         { key: 'medical', label: 'Historique', icon: <FileText className="w-4 h-4" />, count: patient.medicalHistory.length },
@@ -272,6 +300,44 @@ export function PatientDetail() {
                                         <div className="flex items-center gap-3"><Phone className="w-4 h-4 text-slate-400" /><p className="text-sm">{patient.owner.phone}</p></div>
                                         <div className="flex items-center gap-3"><Mail className="w-4 h-4 text-slate-400" /><p className="text-sm">{patient.owner.email}</p></div>
                                         <div className="flex items-center gap-3"><MapPin className="w-4 h-4 text-slate-400" /><p className="text-sm">{patient.owner.address}</p></div>
+                                    </div>
+                                </Card>
+                                <Card>
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <h3 className="font-semibold text-slate-900">RGPD</h3>
+                                        <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <GdprSwitch
+                                            label="Information traitement donnee"
+                                            checked={patient.owner.processingConsent ?? true}
+                                            onChange={(checked) => handleUpdateGdprFlag('processingConsent', checked)}
+                                        />
+                                        <GdprSwitch
+                                            label="Accord rappels et informations"
+                                            checked={patient.owner.marketingConsent ?? false}
+                                            onChange={(checked) => handleUpdateGdprFlag('marketingConsent', checked)}
+                                        />
+                                        <GdprSwitch
+                                            label="Opposition contacts non indispensables"
+                                            checked={patient.owner.contactOpposition ?? false}
+                                            onChange={(checked) => handleUpdateGdprFlag('contactOpposition', checked)}
+                                        />
+                                        <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                                            <p>Consentement: {patient.owner.consentAt ? format(new Date(patient.owner.consentAt), 'dd/MM/yyyy HH:mm') : 'Non date'}</p>
+                                            {patient.owner.anonymizedAt && (
+                                                <p className="mt-1 text-rose-700">Anonymise le {format(new Date(patient.owner.anonymizedAt), 'dd/MM/yyyy HH:mm')}</p>
+                                            )}
+                                            {patient.owner.gdprNotes && <p className="mt-1">{patient.owner.gdprNotes}</p>}
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                                            <Button variant="outline" size="sm" icon={<Download className="h-4 w-4" />} onClick={handleExportGdpr}>
+                                                Exporter
+                                            </Button>
+                                            <Button variant="danger" size="sm" icon={<UserX className="h-4 w-4" />} onClick={() => setShowAnonymizeConfirm(true)}>
+                                                Anonymiser
+                                            </Button>
+                                        </div>
                                     </div>
                                 </Card>
                             </div>
@@ -504,6 +570,21 @@ export function PatientDetail() {
             <VaccinationForm isOpen={showNewVaccination} onClose={() => setShowNewVaccination(false)} onSubmit={handleAddVaccination} patientName={patient.name} />
             <AppointmentForm isOpen={showNewAppointment} onClose={() => setShowNewAppointment(false)} onSubmit={handleAddAppointment} defaultPatientId={patient.id} />
             <ConfirmDialog isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} onConfirm={handleDelete} title="Supprimer le patient" message={`Supprimer definitivement ${patient.name} et tout son historique ?`} confirmLabel="Supprimer" />
+            <ConfirmDialog isOpen={showAnonymizeConfirm} onClose={() => setShowAnonymizeConfirm(false)} onConfirm={handleAnonymizeOwner} title="Anonymiser le proprietaire" message="Les coordonnees personnelles du proprietaire seront remplacees. Les donnees medicales et comptables restent conservees si necessaire." confirmLabel="Anonymiser" variant="warning" />
         </div>
+    );
+}
+
+function GdprSwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+    return (
+        <label className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+            <span>{label}</span>
+            <input
+                type="checkbox"
+                checked={checked}
+                onChange={(event) => onChange(event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+            />
+        </label>
     );
 }

@@ -39,8 +39,19 @@ export function PatientForm({ isOpen, onClose, onSubmit, patient }: PatientFormP
                 email: patient.owner.email,
                 phone: patient.owner.phone,
                 address: patient.owner.address,
+                processingConsent: patient.owner.processingConsent ?? true,
+                marketingConsent: patient.owner.marketingConsent ?? false,
+                contactOpposition: patient.owner.contactOpposition ?? false,
+                gdprNotes: patient.owner.gdprNotes ?? '',
             },
-        } : undefined,
+        } : {
+            owner: {
+                processingConsent: true,
+                marketingConsent: false,
+                contactOpposition: false,
+                gdprNotes: '',
+            },
+        },
     });
 
     const handleFormSubmit = async (data: PatientFormData) => {
@@ -73,6 +84,25 @@ export function PatientForm({ isOpen, onClose, onSubmit, patient }: PatientFormP
                         <Input label="Email" type="email" error={errors.owner?.email?.message} {...register('owner.email')} />
                         <Input label="Telephone" error={errors.owner?.phone?.message} {...register('owner.phone')} />
                         <Input label="Adresse" error={errors.owner?.address?.message} {...register('owner.address')} className="sm:col-span-2" />
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="mb-3 text-sm font-semibold text-slate-700">RGPD et preferences client</h3>
+                    <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+                        <label className="flex items-start gap-3 text-sm text-slate-700">
+                            <input type="checkbox" className="mt-1 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500" {...register('owner.processingConsent')} />
+                            <span>Le client a ete informe du traitement de ses donnees pour la gestion du dossier, des rendez-vous, du suivi veterinaire et de la facturation.</span>
+                        </label>
+                        <label className="flex items-start gap-3 text-sm text-slate-700">
+                            <input type="checkbox" className="mt-1 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500" {...register('owner.marketingConsent')} />
+                            <span>Le client accepte de recevoir des rappels ou informations non strictement necessaires au suivi du dossier.</span>
+                        </label>
+                        <label className="flex items-start gap-3 text-sm text-slate-700">
+                            <input type="checkbox" className="mt-1 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500" {...register('owner.contactOpposition')} />
+                            <span>Le client s'oppose aux contacts non indispensables.</span>
+                        </label>
+                        <Input label="Note RGPD interne" error={errors.owner?.gdprNotes?.message} {...register('owner.gdprNotes')} />
                     </div>
                 </div>
 
