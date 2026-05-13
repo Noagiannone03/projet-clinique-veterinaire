@@ -18,7 +18,7 @@ const speciesOptions = [
 interface PatientFormProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: PatientFormData) => void;
+    onSubmit: (data: PatientFormData) => void | Promise<void>;
     patient?: Patient;
 }
 
@@ -43,8 +43,8 @@ export function PatientForm({ isOpen, onClose, onSubmit, patient }: PatientFormP
         } : undefined,
     });
 
-    const handleFormSubmit = (data: PatientFormData) => {
-        onSubmit(data);
+    const handleFormSubmit = async (data: PatientFormData) => {
+        await onSubmit(data);
         reset();
         onClose();
     };

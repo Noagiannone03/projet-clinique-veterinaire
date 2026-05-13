@@ -84,7 +84,7 @@ export function Patients() {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [speciesFilter, setSpeciesFilter] = useState<SpeciesFilter>('all');
-    const [workflowFilter, setWorkflowFilter] = useState<WorkflowFilter>(role === 'assistant' ? 'today' : 'all');
+    const [workflowFilter, setWorkflowFilter] = useState<WorkflowFilter>('all');
     const [page, setPage] = useState(1);
     const [showNewPatient, setShowNewPatient] = useState(false);
     const [showQuickAppointment, setShowQuickAppointment] = useState(false);
@@ -195,6 +195,11 @@ export function Patients() {
             microchip: data.microchip,
             owner: { id: `owner-${Date.now()}`, ...data.owner },
         });
+        setSearchQuery('');
+        setSpeciesFilter('all');
+        setWorkflowFilter('all');
+        setPage(1);
+        setShowNewPatient(false);
         toast.success('Patient cree avec succes');
     };
 
